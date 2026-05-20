@@ -1,77 +1,163 @@
 package com.workflow.workflow.core;
 
+import com.workflow.workflow.core.taskstatushandlers.*;
+import com.workflow.workflow.database.WorkflowService;
 import com.workflow.workflow.entities.task.TaskStatus;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 
 public class WorkflowEngine {
-    private final ExecutorService executor;
 
-    public WorkflowEngine() {
-        this.executor = Executors.newCachedThreadPool();
+    private static final int CORE_POOL_SIZE = 4;
+    private static final int MAX_POOL_SIZE = 16;
+    private static final long KEEP_ALIVE_SECONDS = 60L;
+    private static final int QUEUE_CAPACITY = 100;
+
+    private final ThreadPoolExecutor executor;
+    private final WorkflowService workflowService;
+    private final TaskRegistry taskRegistry;
+    private final ConcurrentMap<String, Workflow> activeWorkflows = new ConcurrentHashMap<>();
+
+    public WorkflowEngine(WorkflowService workflowService, TaskRegistry taskRegistry) {
+        this.workflowService = workflowService;
+        this.taskRegistry = taskRegistry;
+        this.executor = new ThreadPoolExecutor(
+                CORE_POOL_SIZE,
+                MAX_POOL_SIZE,
+                KEEP_ALIVE_SECONDS, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>(QUEUE_CAPACITY),
+                new ThreadPoolExecutor.CallerRunsPolicy()
+        );
     }
 
-    public void submit(Workflow workflow) throws Exception {
-        System.out.println("[Engine] Submitting workflow: " + workflow.getId());
+    // ── Public API ────────────────────────────────────────────────────────────
 
-        // 1. Validate
-        try {
-            workflow.validate();
-            System.out.println("[Engine] DAG validation passed");
-        } catch (IllegalStateException e) {
-            System.out.println("[Engine] DAG validation FAILED: " + e.getMessage());
-            throw e;
+    public void submit(Workflow workflow) throws Exception {
+        activeWorkflows.put(workflow.getId(), workflow);
+        workflow.setStatus(WorkflowStatus.RUNNING);
+
+        System.out.println("[Engine] Submitting workflow: " + workflow.getId());
+        workflow.validate();
+        System.out.println("[Engine] DAG validation passed");
+
+        // Persist to repository
+        workflowService.saveAll(workflow.getId(), workflow.getTasks());
+
+        // Resolve executionFn from className via registry.
+        // Skip "inline" tasks — executionFn already set via lambda constructor.
+        for (Task task : workflow.getTasks()) {
+            if (!"inline".equals(task.getClassName())) {
+                task.setExecutionFn(() -> taskRegistry.resolve(task.getClassName()).call());
+            }
         }
 
-        // 2. Group into levels
+        TaskStatusHandler entryHandler = buildHandlerChain(workflow);
+
         List<List<Task>> levels = WorkflowHelper.groupByLevel(workflow.getTasks());
         System.out.println("[Engine] Execution plan:");
+        printEngineExecutionPlan(levels);
+
+        try {
+            for (List<Task> level : levels) {
+                if (workflow.isCancelRequested()) {
+                    cancelPendingTasks(level, levels, workflow);
+                    break;
+                }
+                runLevel(level, entryHandler);
+            }
+        } finally {
+            activeWorkflows.remove(workflow.getId());
+        }
+
+        WorkflowStatus finalStatus;
+        if (workflow.isCancelRequested()) {
+            finalStatus = WorkflowStatus.CANCELLED;
+        } else if (workflow.getTasks().stream().anyMatch(t -> t.getStatus() == TaskStatus.FAILED)) {
+            finalStatus = WorkflowStatus.FAILED;
+        } else {
+            finalStatus = WorkflowStatus.SUCCESS;
+        }
+        workflow.setStatus(finalStatus);
+        System.out.println("[Engine] Workflow '" + workflow.getId() + "' → " + finalStatus);
+    }
+
+    /**
+     * Get current status of any task — delegates to WorkflowService.
+     */
+    public TaskStatus getTaskStatus(String taskId) {
+        return workflowService.getStatus(taskId);
+    }
+
+    public void cancelWorkflow(String workflowId) {
+        Workflow workflow = activeWorkflows.get(workflowId);
+        if (workflow == null) {
+            // Workflow already completed or never existed — cancellation is a no-op
+            System.out.println("[Engine] cancelWorkflow('" + workflowId
+                    + "') ignored — workflow is not active (already completed?)");
+            return;
+        }
+        workflow.cancel();
+    }
+
+    public void shutdown() {
+        executor.shutdown();
+        System.out.println("[Engine] Executor shut down");
+    }
+
+    public void shutdownNow() {
+        List<Runnable> pending = executor.shutdownNow();
+        System.out.println("[Engine] Executor shut down immediately. "
+                + pending.size() + " queued task(s) discarded.");
+    }
+
+    // ── Execution ─────────────────────────────────────────────────────────────
+
+    private void runLevel(List<Task> level, TaskStatusHandler entryHandler) throws Exception {
+        List<Future<?>> futures = new ArrayList<>();
+        for (Task task : level) {
+            if (task.getStatus() == TaskStatus.SKIPPED) continue;
+            futures.add(executor.submit(() -> {
+                try {
+                    entryHandler.handle(task);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }));
+        }
+        for (Future<?> f : futures) f.get();
+    }
+
+    private void cancelPendingTasks(List<Task> currentLevel,
+                                    List<List<Task>> allLevels,
+                                    Workflow workflow) {
+        int currentIndex = allLevels.indexOf(currentLevel);
+        for (int i = currentIndex; i < allLevels.size(); i++) {
+            for (Task task : allLevels.get(i)) {
+                if (task.getStatus() == TaskStatus.PENDING) {
+                    task.setStatus(TaskStatus.CANCELLED);
+                    task.setEndTime(Instant.now().toString());
+                    System.out.println("[CANCELLED] Task '" + task.getId()
+                            + "' cancelled — workflow cancellation requested");
+                }
+            }
+        }
+    }
+
+    private TaskStatusHandler buildHandlerChain(Workflow workflow) {
+        SkippedStatusTaskHandler skippedHandler = new SkippedStatusTaskHandler(workflow);
+        FailedStatusTaskHandler failedHandler = new FailedStatusTaskHandler(workflow, skippedHandler);
+        SuccessStatusTaskHandler successHandler = new SuccessStatusTaskHandler();
+        return new RunningStatusTaskHandler(successHandler, failedHandler);
+    }
+
+    private void printEngineExecutionPlan(List<List<Task>> levels) {
         for (int i = 0; i < levels.size(); i++) {
             List<String> ids = levels.get(i).stream().map(Task::getId).toList();
             System.out.println("         Level " + i + ": " + ids
                     + (ids.size() > 1 ? " (parallel)" : ""));
-        }
-
-        for (List<Task> level : levels) {
-            runLevel(level);
-        }
-
-        System.out.println("[Engine] Workflow '" + workflow.getId() + "' completed successfully");
-        executor.shutdown();
-    }
-
-
-    private void runLevel(List<Task> level) throws Exception {
-        List<Future<?>> futures = new ArrayList<>();
-
-        for (Task task : level) {
-            task.setStatus(TaskStatus.RUNNING);
-            System.out.println("[Engine] Dispatching task: " + task.getId()
-                    + " [thread: " + Thread.currentThread().getName() + "]");
-
-            Future<?> future = executor.submit(() -> {
-                System.out.println("[Engine] Running task: " + task.getId()
-                        + " [thread: " + Thread.currentThread().getName() + "]");
-                try {
-                    task.getExecutionFn().call();
-                    task.setStatus(TaskStatus.SUCCESS);
-                    System.out.println("[Engine] Task '" + task.getId() + "' -> SUCCESS");
-                } catch (Exception e) {
-                    task.setStatus(TaskStatus.FAILED);
-                    System.out.println("[Engine] Task '" + task.getId() + "' -> FAILED: " + e.getMessage());
-                    throw new RuntimeException(e);
-                }
-            });
-
-            futures.add(future);
-        }
-
-        for (Future<?> f : futures) {
-            f.get();
         }
     }
 }

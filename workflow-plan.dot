@@ -1,0 +1,11 @@
+digraph wf_parallel {
+    rankdir=LR;
+    node [shape=box fontname=Helvetica];
+
+    "A" [label="A\nTask A\nPENDING" style=filled fillcolor="#FFFFFF"];
+    "B" [label="B\nTask B\nPENDING" style=filled fillcolor="#FFFFFF"];
+    "C" [label="C\nTask C\nPENDING" style=filled fillcolor="#FFFFFF"];
+
+    "A" -> "C";
+    "B" -> "C";
+}
