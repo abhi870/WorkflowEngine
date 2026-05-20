@@ -1,4 +1,6 @@
-package com.workflow.workflow.core;
+package com.workflow.workflow.core.util;
+
+import com.workflow.workflow.core.model.Task;
 
 import java.util.*;
 

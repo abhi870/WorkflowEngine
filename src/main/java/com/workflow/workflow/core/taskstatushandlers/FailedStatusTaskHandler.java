@@ -1,36 +1,32 @@
 package com.workflow.workflow.core.taskstatushandlers;
 
-import com.workflow.workflow.core.Task;
-import com.workflow.workflow.core.Workflow;
-import com.workflow.workflow.entities.task.TaskStatus;
+import com.workflow.workflow.core.model.TaskInstance;
+import com.workflow.workflow.core.model.Workflow;
+import com.workflow.workflow.core.model.WorkflowInstance;
+import com.workflow.workflow.core.constants.TaskStatus;
 import lombok.RequiredArgsConstructor;
 
-import java.time.Duration;
 import java.time.Instant;
 
 @RequiredArgsConstructor
 public class FailedStatusTaskHandler implements TaskStatusHandler {
+
+    private final WorkflowInstance workflowInstance;
     private final Workflow workflow;
     private final SkippedStatusTaskHandler skippedHandler;
 
     @Override
-    public TaskStatus handles() {
-        return TaskStatus.FAILED;
-    }
+    public void handle(TaskInstance taskInstance) {
+        taskInstance.setStatus(TaskStatus.FAILED);
+        taskInstance.setEndTime(Instant.now().toString());
+        System.out.println("[FAILED]  Task '" + taskInstance.getTaskId() + "'"
+                + " failed after " + taskInstance.getDurationMs() + "ms"
+                + " — reason: " + taskInstance.getFailureReason());
 
-    @Override
-    public void handle(Task task) {
-        if (!task.transitionTo(TaskStatus.PENDING, TaskStatus.SKIPPED)) return;
-        task.setEndTime(Instant.now().toString());
-        System.out.println("[FAILED]  Task '" + task.getId() + "' failed"
-                + " after " + getDurationMs(task.getStartTime(), task.getEndTime()) + "ms"
-                + " — reason: " + task.getFailureReason());
-        for (Task dependent : workflow.getDependents(task.getId())) {
+        // Cascade SKIPPED to all dependent task instances
+        for (TaskInstance dependent : workflowInstance.getDependentInstances(
+                taskInstance.getTaskId(), workflow)) {
             skippedHandler.handle(dependent);
         }
-    }
-
-    private long getDurationMs(String startTime, String endTime) {
-        return Duration.between(Instant.parse(startTime), Instant.parse(endTime)).toMillis();
     }
 }

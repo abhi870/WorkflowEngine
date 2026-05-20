@@ -1,23 +1,24 @@
 package com.workflow.workflow.database;
 
-import com.workflow.workflow.core.Task;
-import com.workflow.workflow.entities.task.TaskStatus;
+import com.workflow.workflow.core.model.Task;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * TaskRepository
+ * <p>
+ * Stores Task DEFINITIONS — id, name, deps, className, executionFn.
+ * Does NOT store runtime state (status, times) — that lives in TaskInstanceRepository.
+ */
 public interface TaskRepository {
-    public void save(Task task);
 
+    void save(Task task);
 
-    public Optional<Task> findById(String taskId);
+    Optional<Task> findById(String taskId);
 
-    public TaskStatus getStatus(String taskId);
+    List<Task> findByClassName(String className);
 
-    public List<Task> findByStatus(TaskStatus status);
-
-    public List<Task> findByClassName(String className);
-
-    public Collection<Task> findAll();
+    Collection<Task> findAll();
 }

@@ -1,5 +1,7 @@
-package com.workflow.workflow.core;
+package com.workflow.workflow.core.model;
 
+import com.workflow.workflow.core.constants.WorkflowStatus;
+import com.workflow.workflow.core.util.WorkflowHelper;
 import lombok.Getter;
 
 import java.util.*;

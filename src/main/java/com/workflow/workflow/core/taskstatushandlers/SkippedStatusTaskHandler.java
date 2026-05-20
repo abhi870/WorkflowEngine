@@ -1,35 +1,32 @@
 package com.workflow.workflow.core.taskstatushandlers;
 
-import com.workflow.workflow.core.Task;
-import com.workflow.workflow.core.Workflow;
-import com.workflow.workflow.entities.task.TaskStatus;
+import com.workflow.workflow.core.model.TaskInstance;
+import com.workflow.workflow.core.model.Workflow;
+import com.workflow.workflow.core.model.WorkflowInstance;
+import com.workflow.workflow.core.constants.TaskStatus;
+import lombok.RequiredArgsConstructor;
 
 import java.time.Instant;
 
+@RequiredArgsConstructor
 public class SkippedStatusTaskHandler implements TaskStatusHandler {
+
+    private final WorkflowInstance workflowInstance;
     private final Workflow workflow;
 
-    public SkippedStatusTaskHandler(Workflow workflow) {
-        this.workflow = workflow;
-    }
-
     @Override
-    public TaskStatus handles() {
-        return TaskStatus.SKIPPED;
-    }
+    public void handle(TaskInstance taskInstance) {
+        // CAS — only one thread wins the race to skip
+        if (!taskInstance.transitionTo(TaskStatus.PENDING, TaskStatus.SKIPPED)) return;
 
-    @Override
-    public void handle(Task task) {
-        // Guard: only skip if still pending — already running tasks are not affected
-        if (task.getStatus() != TaskStatus.PENDING) return;
+        taskInstance.setEndTime(Instant.now().toString());
+        System.out.println("[SKIPPED] Task '" + taskInstance.getTaskId()
+                + "' skipped — upstream dependency failed"
+                + " [thread: " + Thread.currentThread().getName() + "]");
 
-        task.setStatus(TaskStatus.SKIPPED);
-        task.setEndTime(Instant.now().toString());
-        System.out.println("[SKIPPED] Task '" + task.getId()
-                + "' skipped — upstream dependency failed");
-
-        // Cascade further down the graph
-        for (Task dependent : workflow.getDependents(task.getId())) {
+        // Cascade recursively
+        for (TaskInstance dependent : workflowInstance.getDependentInstances(
+                taskInstance.getTaskId(), workflow)) {
             handle(dependent);
         }
     }

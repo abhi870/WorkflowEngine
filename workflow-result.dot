@@ -2,9 +2,9 @@ digraph wf_parallel {
     rankdir=LR;
     node [shape=box fontname=Helvetica];
 
-    "A" [label="A\nTask A\nRUNNING" style=filled fillcolor="#FFD700"];
-    "B" [label="B\nTask B\nRUNNING" style=filled fillcolor="#FFD700"];
-    "C" [label="C\nTask C\nRUNNING" style=filled fillcolor="#FFD700"];
+    "A" [label="A\nTask A\nSUCCESS" style=filled fillcolor="#90EE90"];
+    "B" [label="B\nTask B\nSUCCESS" style=filled fillcolor="#90EE90"];
+    "C" [label="C\nTask C\nSUCCESS" style=filled fillcolor="#90EE90"];
 
     "A" -> "C";
     "B" -> "C";

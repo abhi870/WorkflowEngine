@@ -1,15 +1,19 @@
 package com.workflow.workflow;
 
 import com.workflow.workflow.core.*;
+import com.workflow.workflow.core.model.Task;
+import com.workflow.workflow.core.model.Workflow;
+import com.workflow.workflow.core.model.WorkflowInstance;
+import com.workflow.workflow.core.constants.WorkflowStatus;
 import com.workflow.workflow.core.tasks.FailingTask;
 import com.workflow.workflow.core.tasks.PrintTask;
-import com.workflow.workflow.database.TaskRepository;
-import com.workflow.workflow.database.WorkflowRepository;
+import com.workflow.workflow.database.TaskRegistry;
 import com.workflow.workflow.database.WorkflowService;
+import com.workflow.workflow.database.impl.InMemoryTaskInstanceRepository;
 import com.workflow.workflow.database.impl.InMemoryTaskRepository;
 import com.workflow.workflow.database.impl.InMemoryWorkflowRepository;
 import com.workflow.workflow.database.impl.WorkflowServiceImpl;
-import com.workflow.workflow.entities.task.TaskStatus;
+import com.workflow.workflow.core.constants.TaskStatus;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -21,6 +25,9 @@ import java.util.Set;
 @SpringBootApplication
 public class WorkflowApplication {
 
+    static final String PRINT = "com.workflow.workflow.core.tasks.PrintTask";
+    static final String FAIL = "com.workflow.workflow.core.tasks.FailingTask";
+
     public static void main(String[] args) {
         SpringApplication.run(WorkflowApplication.class, args);
     }
@@ -28,10 +35,13 @@ public class WorkflowApplication {
     @Bean
     public CommandLineRunner commandLineRunner() {
         return args -> {
-            TaskRepository taskRepository = new InMemoryTaskRepository();
-            WorkflowRepository workflowRepository = new InMemoryWorkflowRepository(taskRepository);
-            WorkflowService workflowService = new WorkflowServiceImpl(taskRepository, workflowRepository);
+            InMemoryTaskRepository taskRepo = new InMemoryTaskRepository();
+            InMemoryTaskInstanceRepository taskInstanceRepo = new InMemoryTaskInstanceRepository();
+            InMemoryWorkflowRepository workflowRepo = new InMemoryWorkflowRepository(taskRepo);
+            WorkflowService workflowService = new WorkflowServiceImpl(taskRepo, taskInstanceRepo, workflowRepo);
             TaskRegistry taskRegistry = new TaskRegistry();
+            taskRegistry.register(PrintTask.class);
+            taskRegistry.register(FailingTask.class);
             WorkflowEngine engine = new WorkflowEngine(workflowService, taskRegistry);
 
             testLinear(engine);
@@ -47,27 +57,24 @@ public class WorkflowApplication {
         };
     }
 
-    // ── Test 1: A → B → C (sequential) ───────────────────────────────────────
-
     static void testLinear(WorkflowEngine engine) throws Exception {
         System.out.println("\n══════════════════════════════════════");
         System.out.println(" TEST 1 — Linear: A -> B -> C");
         System.out.println("══════════════════════════════════════");
 
         Workflow wf = new Workflow("wf-linear");
-        wf.addTask(new Task("A", "Task A", "com.workflow.workflow.tasks.PrintTask", new PrintTask("A done", 100)));
-        wf.addTask(new Task("B", "Task B", Set.of("A"), "com.workflow.workflow.tasks.PrintTask", new PrintTask("B done", 100)));
-        wf.addTask(new Task("C", "Task C", Set.of("B"), "com.workflow.workflow.tasks.PrintTask", new PrintTask("C done", 100)));
+        wf.addTask(new Task("A", "Task A", PRINT, new PrintTask("A done", 100)));
+        wf.addTask(new Task("B", "Task B", Set.of("A"), PRINT, new PrintTask("B done", 100)));
+        wf.addTask(new Task("C", "Task C", Set.of("B"), PRINT, new PrintTask("C done", 100)));
 
-        engine.submit(wf);
+        WorkflowInstance wfi = engine.submit(wf);
 
-        assert statusOf(wf, "A") == TaskStatus.SUCCESS;
-        assert statusOf(wf, "B") == TaskStatus.SUCCESS;
-        assert statusOf(wf, "C") == TaskStatus.SUCCESS;
+        assert statusOf(wfi, "A") == TaskStatus.SUCCESS;
+        assert statusOf(wfi, "B") == TaskStatus.SUCCESS;
+        assert statusOf(wfi, "C") == TaskStatus.SUCCESS;
         System.out.println("✓ Test 1 passed");
+        System.out.println("  WorkflowInstance: " + wfi);
     }
-
-    // ── Test 2: A + B independent → C (parallel) ─────────────────────────────
 
     static void testParallel(WorkflowEngine engine) throws Exception {
         System.out.println("\n══════════════════════════════════════");
@@ -75,25 +82,23 @@ public class WorkflowApplication {
         System.out.println("══════════════════════════════════════");
 
         Workflow wf = new Workflow("wf-parallel");
-        wf.addTask(new Task("A", "Task A", "com.workflow.workflow.tasks.PrintTask", new PrintTask("A done", 200)));
-        wf.addTask(new Task("B", "Task B", "com.workflow.workflow.tasks.PrintTask", new PrintTask("B done", 200)));
-        wf.addTask(new Task("C", "Task C", Set.of("A", "B"), "com.workflow.workflow.tasks.PrintTask", new PrintTask("C done", 100)));
+        wf.addTask(new Task("A", "Task A", PRINT, new PrintTask("A done", 200)));
+        wf.addTask(new Task("B", "Task B", PRINT, new PrintTask("B done", 200)));
+        wf.addTask(new Task("C", "Task C", Set.of("A", "B"), PRINT, new PrintTask("C done", 100)));
 
-        WorkflowVisualizer.export(wf, Path.of("workflow-plan.dot"));
+        WorkflowVisualizer.export(wf, Path.of("workflow-plan.dot"));   // all PENDING
         long start = System.currentTimeMillis();
-        engine.submit(wf);
+        WorkflowInstance wfi = engine.submit(wf);
         long elapsed = System.currentTimeMillis() - start;
-        WorkflowVisualizer.export(wf, Path.of("workflow-result.dot"));
+        WorkflowVisualizer.export(wf, wfi, Path.of("workflow-result.dot")); // with status
 
-        System.out.println("[Test] Wall time: " + elapsed + "ms (sequential ~500ms, parallel ~300ms)");
+        System.out.println("[Test] Wall time: " + elapsed + "ms");
         assert elapsed < 450 : "Expected parallel execution, got " + elapsed + "ms";
-        assert statusOf(wf, "A") == TaskStatus.SUCCESS;
-        assert statusOf(wf, "B") == TaskStatus.SUCCESS;
-        assert statusOf(wf, "C") == TaskStatus.SUCCESS;
+        assert statusOf(wfi, "A") == TaskStatus.SUCCESS;
+        assert statusOf(wfi, "B") == TaskStatus.SUCCESS;
+        assert statusOf(wfi, "C") == TaskStatus.SUCCESS;
         System.out.println("✓ Test 2 passed — parallelism confirmed");
     }
-
-    // ── Test 3: Cycle rejected ────────────────────────────────────────────────
 
     static void testCycleRejected(WorkflowEngine engine) {
         System.out.println("\n══════════════════════════════════════");
@@ -101,8 +106,8 @@ public class WorkflowApplication {
         System.out.println("══════════════════════════════════════");
 
         Workflow wf = new Workflow("wf-cycle");
-        wf.addTask(new Task("A", "Task A", Set.of("B"), "com.workflow.workflow.tasks.PrintTask", new PrintTask("A done")));
-        wf.addTask(new Task("B", "Task B", Set.of("A"), "com.workflow.workflow.tasks.PrintTask", new PrintTask("B done")));
+        wf.addTask(new Task("A", "Task A", Set.of("B"), PRINT, new PrintTask("A done")));
+        wf.addTask(new Task("B", "Task B", Set.of("A"), PRINT, new PrintTask("B done")));
 
         try {
             engine.submit(wf);
@@ -115,16 +120,14 @@ public class WorkflowApplication {
         System.out.println("✓ Test 3 passed");
     }
 
-    // ── Test 4: Unknown dependency rejected ───────────────────────────────────
-
     static void testMissingDep(WorkflowEngine engine) {
         System.out.println("\n══════════════════════════════════════");
         System.out.println(" TEST 4 — Unknown dep: B -> X");
         System.out.println("══════════════════════════════════════");
 
         Workflow wf = new Workflow("wf-missing");
-        wf.addTask(new Task("A", "Task A", "com.workflow.workflow.tasks.PrintTask", new PrintTask("A done")));
-        wf.addTask(new Task("B", "Task B", Set.of("X"), "com.workflow.workflow.tasks.PrintTask", new PrintTask("B done")));
+        wf.addTask(new Task("A", "Task A", PRINT, new PrintTask("A done")));
+        wf.addTask(new Task("B", "Task B", Set.of("X"), PRINT, new PrintTask("B done")));
 
         try {
             engine.submit(wf);
@@ -137,27 +140,26 @@ public class WorkflowApplication {
         System.out.println("✓ Test 4 passed");
     }
 
-    // ── Test 5: B fails → C skipped ──────────────────────────────────────────
-
     static void testFailureCascade(WorkflowEngine engine) throws Exception {
         System.out.println("\n══════════════════════════════════════");
         System.out.println(" TEST 5 — Cascade: A -> B(fail) -> C(skip)");
         System.out.println("══════════════════════════════════════");
 
         Workflow wf = new Workflow("wf-cascade");
-        wf.addTask(new Task("A", "Task A", "com.workflow.workflow.tasks.PrintTask", new PrintTask("A done", 50)));
-        wf.addTask(new Task("B", "Task B", Set.of("A"), "com.workflow.workflow.tasks.FailingTask", new FailingTask("B exploded")));
-        wf.addTask(new Task("C", "Task C", Set.of("B"), "com.workflow.workflow.tasks.PrintTask", new PrintTask("C done")));
+        wf.addTask(new Task("A", "Task A", PRINT, new PrintTask("A done", 50)));
+        wf.addTask(new Task("B", "Task B", Set.of("A"), FAIL, new FailingTask("B exploded")));
+        wf.addTask(new Task("C", "Task C", Set.of("B"), PRINT, new PrintTask("C done")));
 
-        engine.submit(wf);
+        WorkflowInstance wfi = engine.submit(wf);
 
-        assert statusOf(wf, "A") == TaskStatus.SUCCESS : "A should be SUCCESS";
-        assert statusOf(wf, "B") == TaskStatus.FAILED : "B should be FAILED";
-        assert statusOf(wf, "C") == TaskStatus.SKIPPED : "C should be SKIPPED";
+        assert statusOf(wfi, "A") == TaskStatus.SUCCESS : "A should be SUCCESS";
+        assert statusOf(wfi, "B") == TaskStatus.FAILED : "B should be FAILED";
+        assert statusOf(wfi, "C") == TaskStatus.SKIPPED : "C should be SKIPPED";
+
+        // Print logs for B — shows the failed attempt
+        System.out.println("  Task B logs: " + wfi.findByTaskId("B").getLogs());
         System.out.println("✓ Test 5 passed");
     }
-
-    // ── Test 6: Deep cascade B fails → C → D all skipped ─────────────────────
 
     static void testDeepCascade(WorkflowEngine engine) throws Exception {
         System.out.println("\n══════════════════════════════════════");
@@ -165,21 +167,19 @@ public class WorkflowApplication {
         System.out.println("══════════════════════════════════════");
 
         Workflow wf = new Workflow("wf-deep");
-        wf.addTask(new Task("A", "Task A", "com.workflow.workflow.tasks.PrintTask", new PrintTask("A done", 50)));
-        wf.addTask(new Task("B", "Task B", Set.of("A"), "com.workflow.workflow.tasks.FailingTask", new FailingTask("B exploded")));
-        wf.addTask(new Task("C", "Task C", Set.of("B"), "com.workflow.workflow.tasks.PrintTask", new PrintTask("C done")));
-        wf.addTask(new Task("D", "Task D", Set.of("C"), "com.workflow.workflow.tasks.PrintTask", new PrintTask("D done")));
+        wf.addTask(new Task("A", "Task A", PRINT, new PrintTask("A done", 50)));
+        wf.addTask(new Task("B", "Task B", Set.of("A"), FAIL, new FailingTask("B exploded")));
+        wf.addTask(new Task("C", "Task C", Set.of("B"), PRINT, new PrintTask("C done")));
+        wf.addTask(new Task("D", "Task D", Set.of("C"), PRINT, new PrintTask("D done")));
 
-        engine.submit(wf);
+        WorkflowInstance wfi = engine.submit(wf);
 
-        assert statusOf(wf, "A") == TaskStatus.SUCCESS : "A should be SUCCESS";
-        assert statusOf(wf, "B") == TaskStatus.FAILED : "B should be FAILED";
-        assert statusOf(wf, "C") == TaskStatus.SKIPPED : "C should be SKIPPED";
-        assert statusOf(wf, "D") == TaskStatus.SKIPPED : "D should be SKIPPED";
+        assert statusOf(wfi, "A") == TaskStatus.SUCCESS : "A should be SUCCESS";
+        assert statusOf(wfi, "B") == TaskStatus.FAILED : "B should be FAILED";
+        assert statusOf(wfi, "C") == TaskStatus.SKIPPED : "C should be SKIPPED";
+        assert statusOf(wfi, "D") == TaskStatus.SKIPPED : "D should be SKIPPED";
         System.out.println("✓ Test 6 passed");
     }
-
-    // ── Test 7: Cancel mid-execution ──────────────────────────────────────────
 
     static void testCancel(WorkflowEngine engine) throws Exception {
         System.out.println("\n══════════════════════════════════════");
@@ -187,24 +187,29 @@ public class WorkflowApplication {
         System.out.println("══════════════════════════════════════");
 
         Workflow wf = new Workflow("wf-cancel");
-        wf.addTask(new Task("A", "Task A", "com.workflow.workflow.tasks.PrintTask", new PrintTask("A done", 300)));
-        wf.addTask(new Task("B", "Task B", Set.of("A"), "com.workflow.workflow.tasks.PrintTask", new PrintTask("B done")));
-        wf.addTask(new Task("C", "Task C", Set.of("B"), "com.workflow.workflow.tasks.PrintTask", new PrintTask("C done")));
+        wf.addTask(new Task("A", "Task A", PRINT, new PrintTask("A done", 300)));
+        wf.addTask(new Task("B", "Task B", Set.of("A"), PRINT, new PrintTask("B done")));
+        wf.addTask(new Task("C", "Task C", Set.of("B"), PRINT, new PrintTask("C done")));
+
+        // Hold reference to the instance so canceller can use it
+        final WorkflowInstance[] wfiRef = new WorkflowInstance[1];
 
         Thread canceller = new Thread(() -> {
             sleep(100);
             System.out.println("[Test] Requesting cancellation...");
-            engine.cancelWorkflow("wf-cancel");
+            // Cancel by workflowId — engine finds active instance
+            engine.cancelWorkflow(wf.getId());
         });
         canceller.start();
 
-        engine.submit(wf);
+        WorkflowInstance wfi = engine.submit(wf);
+        wfiRef[0] = wfi;
         canceller.join();
 
-        assert statusOf(wf, "A") == TaskStatus.SUCCESS : "A should be SUCCESS";
-        assert statusOf(wf, "B") == TaskStatus.CANCELLED : "B should be CANCELLED";
-        assert statusOf(wf, "C") == TaskStatus.CANCELLED : "C should be CANCELLED";
-        assert wf.getStatus() == WorkflowStatus.CANCELLED : "Workflow should be CANCELLED";
+        assert statusOf(wfi, "A") == TaskStatus.SUCCESS : "A should be SUCCESS";
+        assert statusOf(wfi, "B") == TaskStatus.CANCELLED : "B should be CANCELLED";
+        assert statusOf(wfi, "C") == TaskStatus.CANCELLED : "C should be CANCELLED";
+        assert wfi.getStatus() == WorkflowStatus.CANCELLED : "Workflow should be CANCELLED";
         System.out.println("✓ Test 7 passed");
     }
 
@@ -218,10 +223,7 @@ public class WorkflowApplication {
         }
     }
 
-    static TaskStatus statusOf(Workflow wf, String id) {
-        return wf.getTasks().stream()
-                .filter(t -> t.getId().equals(id))
-                .findFirst().orElseThrow()
-                .getStatus();
+    static TaskStatus statusOf(WorkflowInstance wfi, String taskId) {
+        return wfi.findByTaskId(taskId).getStatus();
     }
 }

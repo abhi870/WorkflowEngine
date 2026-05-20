@@ -1,11 +1,8 @@
 package com.workflow.workflow.core.taskstatushandlers;
 
-import com.workflow.workflow.core.Task;
-import com.workflow.workflow.entities.task.TaskStatus;
+import com.workflow.workflow.core.model.TaskInstance;
+
 
 public interface TaskStatusHandler {
-    public TaskStatus handles();
-
-    public void handle(Task task);
-
+    void handle(TaskInstance taskInstance) throws Exception;
 }

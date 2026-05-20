@@ -1,4 +1,4 @@
-package com.workflow.workflow.core;
+package com.workflow.workflow.core.constants;
 
 public enum WorkflowStatus {
     PENDING,

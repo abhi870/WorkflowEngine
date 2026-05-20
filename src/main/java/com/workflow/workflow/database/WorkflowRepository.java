@@ -1,14 +1,15 @@
 package com.workflow.workflow.database;
 
-import com.workflow.workflow.core.Task;
+import com.workflow.workflow.core.model.Task;
 
 import java.util.Collection;
 import java.util.List;
 
 public interface WorkflowRepository {
-    public void register(String workflowId, Collection<Task> tasks);
 
-    public List<Task> findByWorkflow(String workflowId);
+    void register(String workflowId, Collection<Task> tasks);
 
-    public boolean hasWorkflow(String workflowId);
+    List<Task> findByWorkflow(String workflowId);
+
+    boolean hasWorkflow(String workflowId);
 }
