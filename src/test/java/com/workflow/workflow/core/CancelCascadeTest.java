@@ -32,8 +32,7 @@ class CancelCascadeTest extends WorkflowEngineTestBase {
         WorkflowInstance wfi = engine.submit(wf);
         canceller.join();
 
-        assertEquals(TaskStatus.SUCCESS, statusOf(wfi, "A"),
-                "A was already running when cancel arrived — it should complete");
+        assertEquals(TaskStatus.SUCCESS, statusOf(wfi, "A"));
         assertEquals(TaskStatus.CANCELLED, statusOf(wfi, "B"));
         assertEquals(TaskStatus.CANCELLED, statusOf(wfi, "C"));
         assertEquals(WorkflowStatus.CANCELLED, wfi.getStatus());

@@ -33,7 +33,7 @@ class WorkflowLogsTest extends WorkflowEngineTestBase {
             System.out.println("  " + e.getLoggedAt() + " " + e.getEventType() + " — " + e.getMessage());
         }
 
-        assertFalse(events.isEmpty(), "expected workflow events to be logged");
+        assertFalse(events.isEmpty());
 
         EnumSet<WorkflowEventType> types = EnumSet.noneOf(WorkflowEventType.class);
         for (WorkflowLog e : events) types.add(e.getEventType());
@@ -46,8 +46,8 @@ class WorkflowLogsTest extends WorkflowEngineTestBase {
         int submittedIdx = indexOf(events, WorkflowEventType.WORKFLOW_SUBMITTED);
         int validatedIdx = indexOf(events, WorkflowEventType.WORKFLOW_VALIDATED);
         int completedIdx = indexOf(events, WorkflowEventType.WORKFLOW_COMPLETED);
-        assertTrue(submittedIdx < validatedIdx, "submitted must come before validated");
-        assertTrue(validatedIdx < completedIdx, "validated must come before completed");
+        assertTrue(submittedIdx < validatedIdx);
+        assertTrue(validatedIdx < completedIdx);
     }
 
     @Test
@@ -64,8 +64,7 @@ class WorkflowLogsTest extends WorkflowEngineTestBase {
         System.out.println("LEVEL_STARTED events: " + levelStarted.size());
         levelStarted.forEach(e -> System.out.println("  " + e.getMessage()));
 
-        assertTrue(levelStarted.size() >= 2,
-                "expected >= 2 LEVEL_STARTED events, got " + levelStarted.size());
+        assertTrue(levelStarted.size() >= 2);
         for (WorkflowLog e : levelStarted) {
             assertEquals(WorkflowEventType.LEVEL_STARTED, e.getEventType());
         }

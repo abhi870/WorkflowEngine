@@ -15,17 +15,9 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Runs a workflow, captures its lifecycle events from the LoggingService,
- * and writes them to a file in the current working directory (project root
- * when run via Maven / your IDE) — then asserts the file was produced and
- * contains the expected lifecycle markers. The file is left on disk after
- * the test so it can be inspected.
- */
+
 class WorkflowLifecycleFileTest extends WorkflowEngineTestBase {
 
     private static final String OUTPUT_FILE = "workflow-lifecycle.log";
@@ -40,7 +32,7 @@ class WorkflowLifecycleFileTest extends WorkflowEngineTestBase {
         WorkflowInstance wfi = engine.submit(wf);
 
         List<WorkflowLog> events = loggingService.getEventsForWorkflow(wfi.getInstanceId());
-        assertFalse(events.isEmpty(), "expected at least one lifecycle event");
+        assertFalse(events.isEmpty());
 
         // Resolve a path relative to the current working directory — when the
         // test runs via Maven this is the project root, alongside pom.xml.
@@ -60,24 +52,18 @@ class WorkflowLifecycleFileTest extends WorkflowEngineTestBase {
                 + " lifecycle events to: " + outFile.toAbsolutePath());
 
         // ── Assertions ────────────────────────────────────────────────────
-        assertTrue(Files.exists(outFile), "lifecycle file should exist on disk");
-        assertTrue(Files.size(outFile) > 0, "lifecycle file should not be empty");
+        assertTrue(Files.exists(outFile));
+        assertTrue(Files.size(outFile) > 0);
 
         List<String> lines = Files.readAllLines(outFile);
-        assertEquals(events.size() + 1, lines.size(),
-                "expected one header line plus one line per event");
-        assertTrue(lines.get(0).contains(wf.getId()),
-                "header should reference the workflow id");
+        assertEquals(events.size() + 1, lines.size());
+        assertTrue(lines.get(0).contains(wf.getId()));
 
         // The file should record every key lifecycle marker.
         String body = String.join("\n", lines);
-        assertTrue(body.contains(WorkflowEventType.WORKFLOW_SUBMITTED.name()),
-                "file should mention WORKFLOW_SUBMITTED");
-        assertTrue(body.contains(WorkflowEventType.WORKFLOW_VALIDATED.name()),
-                "file should mention WORKFLOW_VALIDATED");
-        assertTrue(body.contains(WorkflowEventType.LEVEL_STARTED.name()),
-                "file should mention LEVEL_STARTED");
-        assertTrue(body.contains(WorkflowEventType.WORKFLOW_COMPLETED.name()),
-                "file should mention WORKFLOW_COMPLETED");
+        assertTrue(body.contains(WorkflowEventType.WORKFLOW_SUBMITTED.name()));
+        assertTrue(body.contains(WorkflowEventType.WORKFLOW_VALIDATED.name()));
+        assertTrue(body.contains(WorkflowEventType.LEVEL_STARTED.name()));
+        assertTrue(body.contains(WorkflowEventType.WORKFLOW_COMPLETED.name()));
     }
 }

@@ -43,7 +43,7 @@ class RetryTest extends WorkflowEngineTestBase {
         // Verify the attempt history through the logging service.
         String bTiId = wfi.findByTaskId("B").getInstanceId();
         List<TaskExecutionLog> bLogs = loggingService.getLogsForTask(bTiId);
-        assertEquals(2, bLogs.size(), "expected 1 failed + 1 success attempt");
+        assertEquals(2, bLogs.size());
         assertEquals(TaskStatus.FAILED, bLogs.get(0).getStatus());
         assertEquals(TaskStatus.SUCCESS, bLogs.get(1).getStatus());
     }
@@ -63,12 +63,11 @@ class RetryTest extends WorkflowEngineTestBase {
 
         assertEquals(TaskStatus.SUCCESS, statusOf(wfi, "A"));
         assertEquals(TaskStatus.FAILED, statusOf(wfi, "B"));
-        assertEquals(TaskStatus.SKIPPED, statusOf(wfi, "C"),
-                "C must be skipped because B failed");
+        assertEquals(TaskStatus.SKIPPED, statusOf(wfi, "C"));
 
         String bTiId = wfi.findByTaskId("B").getInstanceId();
         List<TaskExecutionLog> bLogs = loggingService.getLogsForTask(bTiId);
-        assertEquals(2, bLogs.size(), "expected exactly maxAttempts (2) failed attempts");
+        assertEquals(2, bLogs.size());
         for (TaskExecutionLog log : bLogs) {
             assertEquals(TaskStatus.FAILED, log.getStatus());
             assertNotNull(log.getErrorMessage());

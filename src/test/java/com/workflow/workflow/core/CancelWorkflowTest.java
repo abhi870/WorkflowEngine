@@ -35,11 +35,11 @@ class CancelWorkflowTest extends WorkflowEngineTestBase {
         canceller.join();
 
         assertEquals(WorkflowStatus.CANCELLED, wfi.getStatus());
-        assertTrue(wfi.isCancelRequested(), "cancelRequested flag should be set");
+        assertTrue(wfi.isCancelRequested());
 
         List<WorkflowLog> cancelEvents = loggingService.getEventsByType(
                 wfi.getInstanceId(), WorkflowEventType.WORKFLOW_CANCEL_REQUESTED);
-        assertFalse(cancelEvents.isEmpty(), "expected at least one cancel-requested event");
+        assertFalse(cancelEvents.isEmpty());
         assertEquals(wf.getId(), cancelEvents.get(0).getWorkflowId());
     }
 
@@ -60,6 +60,6 @@ class CancelWorkflowTest extends WorkflowEngineTestBase {
 
         assertEquals(WorkflowStatus.SUCCESS, wfi.getStatus());
         assertEquals(TaskStatus.SUCCESS, statusOf(wfi, "A"));
-        assertFalse(wfi.isCancelRequested(), "cancel flag should not flip after completion");
+        assertFalse(wfi.isCancelRequested());
     }
 }

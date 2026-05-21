@@ -31,16 +31,15 @@ class FailureCascadeTest extends WorkflowEngineTestBase {
 
         WorkflowInstance wfi = engine.submit(wf);
 
-        assertEquals(TaskStatus.SUCCESS, statusOf(wfi, "A"), "A should be SUCCESS");
-        assertEquals(TaskStatus.FAILED, statusOf(wfi, "B"), "B should be FAILED");
-        assertEquals(TaskStatus.SKIPPED, statusOf(wfi, "C"), "C should be SKIPPED");
-        assertEquals(WorkflowStatus.FAILED, wfi.getStatus(),
-                "workflow should end in FAILED state");
-        assertTrue(wfi.anyFailed(), "anyFailed() should be true");
+        assertEquals(TaskStatus.SUCCESS, statusOf(wfi, "A"));
+        assertEquals(TaskStatus.FAILED, statusOf(wfi, "B"));
+        assertEquals(TaskStatus.SKIPPED, statusOf(wfi, "C"));
+        assertEquals(WorkflowStatus.FAILED, wfi.getStatus());
+        assertTrue(wfi.anyFailed());
 
         String bTiId = wfi.findByTaskId("B").getInstanceId();
         List<TaskExecutionLog> bLogs = loggingService.getLogsForTask(bTiId);
-        assertTrue(bLogs.size() >= 1, "B should have at least one failed attempt logged");
+        assertTrue(bLogs.size() >= 1);
         TaskExecutionLog last = bLogs.get(bLogs.size() - 1);
         assertEquals(TaskStatus.FAILED, last.getStatus());
         assertNotNull(last.getErrorMessage());
@@ -61,8 +60,8 @@ class FailureCascadeTest extends WorkflowEngineTestBase {
         assertEquals(TaskStatus.SUCCESS, statusOf(wfi, "A"));
         assertEquals(TaskStatus.FAILED, statusOf(wfi, "B"));
         assertEquals(TaskStatus.SKIPPED, statusOf(wfi, "C"));
-        assertEquals(TaskStatus.SUCCESS, statusOf(wfi, "D"), "independent branch must run");
-        assertEquals(TaskStatus.SUCCESS, statusOf(wfi, "E"), "independent branch must run");
+        assertEquals(TaskStatus.SUCCESS, statusOf(wfi, "D"));
+        assertEquals(TaskStatus.SUCCESS, statusOf(wfi, "E"));
         assertEquals(WorkflowStatus.FAILED, wfi.getStatus());
     }
 }

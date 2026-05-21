@@ -35,13 +35,13 @@ class TaskLogsTest extends WorkflowEngineTestBase {
 
         System.out.println("Task A logs: " + logs);
 
-        assertEquals(1, logs.size(), "expected exactly one execution log");
+        assertEquals(1, logs.size());
         TaskExecutionLog log = logs.get(0);
         assertEquals(TaskStatus.SUCCESS, log.getStatus());
         assertEquals(1, log.getAttempt());
         assertNotNull(log.getStartTime());
         assertNotNull(log.getEndTime());
-        assertNull(log.getErrorMessage(), "no error message on success");
+        assertNull(log.getErrorMessage());
     }
 
     @Test
@@ -65,7 +65,7 @@ class TaskLogsTest extends WorkflowEngineTestBase {
                     + " err=" + log.getErrorMessage());
         }
 
-        assertEquals(2, logs.size(), "expected 1 failed + 1 success log");
+        assertEquals(2, logs.size());
         assertEquals(TaskStatus.FAILED, logs.get(0).getStatus());
         assertEquals(1, logs.get(0).getAttempt());
         assertNotNull(logs.get(0).getErrorMessage());
@@ -74,7 +74,6 @@ class TaskLogsTest extends WorkflowEngineTestBase {
         assertEquals(TaskStatus.SUCCESS, logs.get(1).getStatus());
         assertEquals(2, logs.get(1).getAttempt());
 
-        assertEquals(2, loggingService.getAttemptCount(tiId),
-                "getAttemptCount should match number of attempts");
+        assertEquals(2, loggingService.getAttemptCount(tiId));
     }
 }

@@ -53,7 +53,6 @@ class SubmitWorkflowTest extends WorkflowEngineTestBase {
         assertEquals(TaskStatus.SUCCESS, statusOf(wfi, "B"));
         assertEquals(TaskStatus.SUCCESS, statusOf(wfi, "C"));
 
-        assertTrue(elapsedMs < 450,
-                "Expected parallel execution (< 450ms), but took " + elapsedMs + "ms");
+        assertTrue(elapsedMs < 450);
     }
 }

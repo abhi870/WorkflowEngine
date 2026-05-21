@@ -21,10 +21,8 @@ class CycleRejectedTest extends WorkflowEngineTestBase {
         wf.addTask(new Task("B", "Task B", Set.of("A"), PRINT, new PrintTask("B done")));
 
         IllegalStateException ex = assertThrows(IllegalStateException.class,
-                () -> engine.submit(wf),
-                "submit() must throw on cyclic DAG");
-        assertTrue(ex.getMessage().toLowerCase().contains("cycle"),
-                "exception message should mention cycle, was: " + ex.getMessage());
+                () -> engine.submit(wf));
+        assertTrue(ex.getMessage().toLowerCase().contains("cycle"));
     }
 
     @Test
