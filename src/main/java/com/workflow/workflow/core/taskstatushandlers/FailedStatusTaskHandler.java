@@ -23,7 +23,6 @@ public class FailedStatusTaskHandler implements TaskStatusHandler {
                 + " failed after " + taskInstance.getDurationMs() + "ms"
                 + " — reason: " + taskInstance.getFailureReason());
 
-        // Cascade SKIPPED to all dependent task instances
         for (TaskInstance dependent : workflowInstance.getDependentInstances(
                 taskInstance.getTaskId(), workflow)) {
             skippedHandler.handle(dependent);

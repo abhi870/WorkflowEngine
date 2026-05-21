@@ -32,7 +32,6 @@ public class RunningStatusTaskHandler {
             try {
                 executionFn.execute();
 
-                // ── Success ───────────────────────────────────────────────────
                 String endTime = Instant.now().toString();
                 loggingService.log(TaskExecutionLog.success(
                         taskInstance.getInstanceId(),
@@ -47,7 +46,6 @@ public class RunningStatusTaskHandler {
                 return;
 
             } catch (Exception e) {
-                // ── Failed attempt ────────────────────────────────────────────
                 String endTime = Instant.now().toString();
                 taskInstance.setFailureReason(e.getMessage());
 

@@ -45,15 +45,13 @@ public class WorkflowEngine {
         );
     }
 
-    // ── Public API ────────────────────────────────────────────────────────────
 
     public WorkflowInstance submit(Workflow workflow) throws Exception {
         System.out.println("[Engine] Submitting workflow: " + workflow.getId());
         workflow.validate();
         System.out.println("[Engine] DAG validation passed");
 
-        // Log submission — workflowInstanceId not yet known, log after creation
-        // Validate all classNames are registered before starting
+
         for (Task task : workflow.getTasks()) {
             taskRegistry.resolve(task.getClassName());
         }
@@ -67,7 +65,6 @@ public class WorkflowEngine {
             workflowService.saveTaskInstance(ti);  // persist each instance
         }
 
-        // Create WorkflowInstance
         WorkflowInstance wfInstance = new WorkflowInstance(workflow.getId(), taskInstances);
         activeInstances.put(wfInstance.getInstanceId(), wfInstance);
         wfInstance.setStatus(WorkflowStatus.RUNNING);
@@ -81,10 +78,8 @@ public class WorkflowEngine {
                 WorkflowEventType.WORKFLOW_VALIDATED,
                 "DAG validation passed"));
 
-        // Persist task definitions
         workflowService.saveAll(workflow.getId(), workflow.getTasks());
 
-        // Build handler chain
         SkippedStatusTaskHandler skippedHandler = new SkippedStatusTaskHandler(wfInstance, workflow, loggingService);
         FailedStatusTaskHandler failedHandler = new FailedStatusTaskHandler(wfInstance, workflow, skippedHandler);
         SuccessStatusTaskHandler successHandler = new SuccessStatusTaskHandler();
@@ -112,7 +107,6 @@ public class WorkflowEngine {
             activeInstances.remove(wfInstance.getInstanceId());
         }
 
-        // Derive final status
         WorkflowStatus finalStatus;
         if (wfInstance.isCancelRequested()) {
             finalStatus = WorkflowStatus.CANCELLED;
@@ -130,7 +124,6 @@ public class WorkflowEngine {
                 "Workflow completed with status: " + finalStatus));
         System.out.println("[Engine] Workflow '" + workflow.getId() + "' → " + finalStatus);
 
-        // Build and log summary
         java.util.Map<String, TaskStatus> statusMap =
                 wfInstance.getTaskInstances().stream()
                         .collect(java.util.stream.Collectors.toMap(
@@ -143,10 +136,7 @@ public class WorkflowEngine {
         return wfInstance;
     }
 
-    /**
-     * Get status of a TaskInstance by its instanceId.
-     * Use wfInstance.findByTaskId(taskId).getStatus() for task-definition-based lookup.
-     */
+
     public TaskStatus getTaskInstanceStatus(String instanceId) {
         return workflowService.getTaskInstanceStatus(instanceId);
     }
@@ -179,7 +169,6 @@ public class WorkflowEngine {
                 + pending.size() + " task(s) discarded.");
     }
 
-    // ── Execution ─────────────────────────────────────────────────────────────
 
     private void runLevel(List<Task> level, WorkflowInstance wfInstance,
                           RunningStatusTaskHandler runningHandler) throws Exception {

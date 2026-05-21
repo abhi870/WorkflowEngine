@@ -38,7 +38,6 @@ class FailureCascadeTest extends WorkflowEngineTestBase {
                 "workflow should end in FAILED state");
         assertTrue(wfi.anyFailed(), "anyFailed() should be true");
 
-        // The failed task should have an execution log with the failure reason.
         String bTiId = wfi.findByTaskId("B").getInstanceId();
         List<TaskExecutionLog> bLogs = loggingService.getLogsForTask(bTiId);
         assertTrue(bLogs.size() >= 1, "B should have at least one failed attempt logged");
@@ -50,8 +49,6 @@ class FailureCascadeTest extends WorkflowEngineTestBase {
 
     @Test
     void testingFailureCascade_doesNotAffectIndependentBranch() throws Exception {
-        // A → B(fail) → C  (cascade branch)
-        // A → D → E         (independent branch — must all succeed)
         Workflow wf = new Workflow("wf-cascade-sibling");
         wf.addTask(new Task("A", "Task A", PRINT, new PrintTask("A done", 30)));
         wf.addTask(new Task("B", "Task B", Set.of("A"), FAIL, new FailingTask("nope")));

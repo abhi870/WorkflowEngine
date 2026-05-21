@@ -43,7 +43,6 @@ public class TaskRegistry {
         };
     }
 
-    // ── Queries ───────────────────────────────────────────────────────────────
 
     public boolean isRegistered(String className) {
         return store.containsKey(className);
@@ -53,7 +52,6 @@ public class TaskRegistry {
         return Collections.unmodifiableSet(store.keySet());
     }
 
-    // ── Private ───────────────────────────────────────────────────────────────
 
     private void validateConstructor(Class<? extends TaskFunction> taskClass) {
         try {

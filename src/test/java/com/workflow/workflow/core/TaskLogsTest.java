@@ -33,7 +33,6 @@ class TaskLogsTest extends WorkflowEngineTestBase {
         String tiId = wfi.findByTaskId("A").getInstanceId();
         List<TaskExecutionLog> logs = loggingService.getLogsForTask(tiId);
 
-        // Print logs for visibility when running tests verbosely.
         System.out.println("Task A logs: " + logs);
 
         assertEquals(1, logs.size(), "expected exactly one execution log");

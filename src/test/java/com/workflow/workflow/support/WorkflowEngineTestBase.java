@@ -18,12 +18,6 @@ import org.junit.jupiter.api.BeforeEach;
 
 import com.workflow.workflow.core.constants.TaskStatus;
 
-/**
- * Shared scaffolding for WorkflowEngine tests:
- * - Builds a fresh in-memory engine before each test for isolation.
- * - Registers the standard task classes used across tests.
- * - Exposes helper accessors (engine, loggingService) to subclasses.
- */
 public abstract class WorkflowEngineTestBase {
 
     public static final String PRINT = "com.workflow.workflow.core.tasks.PrintTask";

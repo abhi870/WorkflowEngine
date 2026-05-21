@@ -37,13 +37,6 @@ class DeepCascadeTest extends WorkflowEngineTestBase {
 
     @Test
     void testDeepCascade_diamondFanOut() throws Exception {
-        //        A
-        //        ↓
-        //        B (fails)
-        //       / \
-        //      C   D
-        //       \ /
-        //        E
         Workflow wf = new Workflow("wf-deep-diamond");
         wf.addTask(new Task("A", "Task A", PRINT, new PrintTask("A done", 20)));
         wf.addTask(new Task("B", "Task B", Set.of("A"), FAIL, new FailingTask("B exploded")));
