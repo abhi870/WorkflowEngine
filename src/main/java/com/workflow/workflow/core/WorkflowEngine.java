@@ -1,6 +1,10 @@
 package com.workflow.workflow.core;
 
+import com.workflow.workflow.core.constants.TaskStatus;
+import com.workflow.workflow.core.constants.WorkflowEventType;
 import com.workflow.workflow.core.constants.WorkflowStatus;
+import com.workflow.workflow.core.logging.LoggingService;
+import com.workflow.workflow.core.logging.WorkflowLog;
 import com.workflow.workflow.core.model.*;
 import com.workflow.workflow.core.tasks.TaskFunction;
 import com.workflow.workflow.core.taskstatushandlers.FailedStatusTaskHandler;
@@ -10,7 +14,6 @@ import com.workflow.workflow.core.taskstatushandlers.SuccessStatusTaskHandler;
 import com.workflow.workflow.core.util.WorkflowHelper;
 import com.workflow.workflow.database.TaskRegistry;
 import com.workflow.workflow.database.WorkflowService;
-import com.workflow.workflow.core.constants.TaskStatus;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -28,10 +31,13 @@ public class WorkflowEngine {
     private final WorkflowService workflowService;
     private final TaskRegistry taskRegistry;
     private final ConcurrentMap<String, WorkflowInstance> activeInstances = new ConcurrentHashMap<>();
+    private final LoggingService loggingService;
 
-    public WorkflowEngine(WorkflowService workflowService, TaskRegistry taskRegistry) {
+    public WorkflowEngine(WorkflowService workflowService, TaskRegistry taskRegistry,
+                          LoggingService loggingService) {
         this.workflowService = workflowService;
         this.taskRegistry = taskRegistry;
+        this.loggingService = loggingService;
         this.executor = new ThreadPoolExecutor(
                 CORE_POOL_SIZE, MAX_POOL_SIZE, KEEP_ALIVE_SECONDS, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>(QUEUE_CAPACITY),
@@ -46,6 +52,7 @@ public class WorkflowEngine {
         workflow.validate();
         System.out.println("[Engine] DAG validation passed");
 
+        // Log submission — workflowInstanceId not yet known, log after creation
         // Validate all classNames are registered before starting
         for (Task task : workflow.getTasks()) {
             taskRegistry.resolve(task.getClassName());
@@ -65,14 +72,23 @@ public class WorkflowEngine {
         activeInstances.put(wfInstance.getInstanceId(), wfInstance);
         wfInstance.setStatus(WorkflowStatus.RUNNING);
 
+        loggingService.logEvent(WorkflowLog.workflowEvent(
+                wfInstance.getInstanceId(), workflow.getId(),
+                WorkflowEventType.WORKFLOW_SUBMITTED,
+                "Workflow submitted with " + workflow.getTasks().size() + " tasks"));
+        loggingService.logEvent(WorkflowLog.workflowEvent(
+                wfInstance.getInstanceId(), workflow.getId(),
+                WorkflowEventType.WORKFLOW_VALIDATED,
+                "DAG validation passed"));
+
         // Persist task definitions
         workflowService.saveAll(workflow.getId(), workflow.getTasks());
 
         // Build handler chain
-        SkippedStatusTaskHandler skippedHandler = new SkippedStatusTaskHandler(wfInstance, workflow);
+        SkippedStatusTaskHandler skippedHandler = new SkippedStatusTaskHandler(wfInstance, workflow, loggingService);
         FailedStatusTaskHandler failedHandler = new FailedStatusTaskHandler(wfInstance, workflow, skippedHandler);
         SuccessStatusTaskHandler successHandler = new SuccessStatusTaskHandler();
-        RunningStatusTaskHandler runningHandler = new RunningStatusTaskHandler(successHandler, failedHandler);
+        RunningStatusTaskHandler runningHandler = new RunningStatusTaskHandler(successHandler, failedHandler, loggingService);
 
         System.out.println("[Engine] Execution plan:");
         List<List<Task>> levels = WorkflowHelper.groupByLevel(workflow.getTasks());
@@ -84,6 +100,12 @@ public class WorkflowEngine {
                     cancelPendingTaskInstances(level, levels, wfInstance);
                     break;
                 }
+                int levelIndex = levels.indexOf(level);
+                List<String> levelTaskIds = level.stream().map(Task::getId).toList();
+                loggingService.logEvent(WorkflowLog.workflowEvent(
+                        wfInstance.getInstanceId(), workflow.getId(),
+                        WorkflowEventType.LEVEL_STARTED,
+                        "Level " + levelIndex + " started: " + levelTaskIds));
                 runLevel(level, wfInstance, runningHandler);
             }
         } finally {
@@ -102,7 +124,22 @@ public class WorkflowEngine {
         wfInstance.setStatus(finalStatus);
         wfInstance.setEndTime(Instant.now().toString());
 
+        loggingService.logEvent(WorkflowLog.workflowEvent(
+                wfInstance.getInstanceId(), workflow.getId(),
+                WorkflowEventType.WORKFLOW_COMPLETED,
+                "Workflow completed with status: " + finalStatus));
         System.out.println("[Engine] Workflow '" + workflow.getId() + "' → " + finalStatus);
+
+        // Build and log summary
+        java.util.Map<String, TaskStatus> statusMap =
+                wfInstance.getTaskInstances().stream()
+                        .collect(java.util.stream.Collectors.toMap(
+                                TaskInstance::getInstanceId,
+                                TaskInstance::getStatus));
+
+
+        System.out.println("[Engine] Summary:\n");
+
         return wfInstance;
     }
 
@@ -124,6 +161,10 @@ public class WorkflowEngine {
                     + "') ignored — no active instance found");
             return;
         }
+        loggingService.logEvent(WorkflowLog.workflowEvent(
+                wfInstance.getInstanceId(), workflowId,
+                WorkflowEventType.WORKFLOW_CANCEL_REQUESTED,
+                "Cancellation requested for workflow: " + workflowId));
         wfInstance.cancel();
     }
 
@@ -149,10 +190,10 @@ public class WorkflowEngine {
             if (taskInstance.getStatus() == TaskStatus.SKIPPED) continue;
 
             TaskFunction fn = task.getExecutionFn();
-
+            RetryPolicy retryPolicy = task.getRetryPolicy();
             futures.add(executor.submit(() -> {
                 try {
-                    runningHandler.handle(taskInstance, fn);
+                    runningHandler.handle(taskInstance, fn, retryPolicy);
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
@@ -173,6 +214,11 @@ public class WorkflowEngine {
                     ti.setStatus(TaskStatus.CANCELLED);
                     ti.setEndTime(Instant.now().toString());
                     System.out.println("[CANCELLED] Task '" + task.getId() + "'");
+                    loggingService.logEvent(WorkflowLog.taskEvent(
+                            wfInstance.getInstanceId(), wfInstance.getWorkflowId(),
+                            ti.getInstanceId(), task.getId(),
+                            WorkflowEventType.TASK_CANCELLED,
+                            "Task cancelled — workflow cancellation requested"));
                 }
             }
         }
@@ -184,5 +230,9 @@ public class WorkflowEngine {
             System.out.println("         Level " + i + ": " + ids
                     + (ids.size() > 1 ? " (parallel)" : ""));
         }
+    }
+
+    public LoggingService getLoggingService() {
+        return loggingService;
     }
 }

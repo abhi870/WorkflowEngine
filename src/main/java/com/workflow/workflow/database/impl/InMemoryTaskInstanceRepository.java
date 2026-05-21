@@ -10,14 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 
-/**
- * InMemoryTaskInstanceRepository
- * <p>
- * Thread safety:
- * - ConcurrentHashMap for primary store
- * - All read methods return new list copies — stable snapshots
- * - TaskInstance fields are volatile / AtomicReference (on TaskInstance itself)
- */
+
 public class InMemoryTaskInstanceRepository implements TaskInstanceRepository {
 
     private final ConcurrentMap<String, TaskInstance> store = new ConcurrentHashMap<>();

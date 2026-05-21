@@ -1,22 +1,23 @@
-package com.workflow.workflow.core.model;
+package com.workflow.workflow.core.logging;
 
 import com.workflow.workflow.core.constants.TaskStatus;
+import lombok.Getter;
+import lombok.ToString;
 
-/**
- * TaskExecutionLog
- * <p>
- * One record per ATTEMPT, not per task instance.
- * A retried task produces multiple logs — one per attempt.
- * Immutable — written once when an attempt completes.
- */
+import java.time.Instant;
+
+
+@Getter
+@ToString
 public class TaskExecutionLog {
 
     private final String taskInstanceId;
     private final String workflowInstanceId;
     private final int attempt;          // 1-based
     private final TaskStatus status;           // SUCCESS or FAILED only
-    private final String startTime;
-    private final String endTime;
+    private final String startTime;        // attempt execution start
+    private final String endTime;          // attempt execution end
+    private final String loggedAt;         // when logged to LoggingService
     private final String errorMessage;     // null on SUCCESS
 
     public TaskExecutionLog(
@@ -38,10 +39,9 @@ public class TaskExecutionLog {
         this.status = status;
         this.startTime = startTime;
         this.endTime = endTime;
+        this.loggedAt = Instant.now().toString();  // stamped at construction
         this.errorMessage = errorMessage;
     }
-
-    // ── Factory methods ───────────────────────────────────────────────────────
 
     public static TaskExecutionLog success(
             String taskInstanceId, String workflowInstanceId,
@@ -57,45 +57,9 @@ public class TaskExecutionLog {
                 attempt, TaskStatus.FAILED, startTime, endTime, errorMessage);
     }
 
-    // ── Getters ───────────────────────────────────────────────────────────────
-
-    public String getTaskInstanceId() {
-        return taskInstanceId;
-    }
-
-    public String getWorkflowInstanceId() {
-        return workflowInstanceId;
-    }
-
-    public int getAttempt() {
-        return attempt;
-    }
-
-    public TaskStatus getStatus() {
-        return status;
-    }
-
-    public String getStartTime() {
-        return startTime;
-    }
-
-    public String getEndTime() {
-        return endTime;
-    }
-
-    public String getErrorMessage() {
-        return errorMessage;
-    }
 
     public boolean isSuccess() {
         return status == TaskStatus.SUCCESS;
     }
 
-    @Override
-    public String toString() {
-        String err = errorMessage != null ? " | error='" + errorMessage + "'" : "";
-        return "TaskExecutionLog{attempt=" + attempt
-                + ", status=" + status
-                + err + "}";
-    }
 }

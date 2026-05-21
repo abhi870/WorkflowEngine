@@ -8,51 +8,21 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * TaskRegistry
- * <p>
- * Maps a stored className (String) → live Callable the engine invokes.
- * <p>
- * The className is persisted in Task.className (a plain DB column).
- * The Callable is resolved fresh at execution time — never stored.
- * <p>
- * Lifecycle:
- * 1. Startup  — register(SendEmailTask.class)
- * 2. Execution — engine calls resolve("com.workflow.tasks.SendEmailTask")
- * → new SendEmailTask().execute()
- * <p>
- * Thread safety:
- * ConcurrentHashMap — register() and resolve() are safe to call concurrently.
- * resolve() creates a new task instance per call — tasks must be stateless.
- */
+
 public class TaskRegistry {
 
     private final Map<String, Class<? extends TaskFunction>> store = new ConcurrentHashMap<>();
 
-    // ── Registration ──────────────────────────────────────────────────────────
 
-    /**
-     * Register a JavaTask class.
-     * Validates the public no-arg constructor at registration time —
-     * fails fast on startup rather than mid-execution.
-     */
+
     public void register(Class<? extends TaskFunction> taskClass) {
         validateConstructor(taskClass);
         store.put(taskClass.getName(), taskClass);
         System.out.println("[TaskRegistry] Registered: " + taskClass.getName());
     }
 
-    // ── Resolution ────────────────────────────────────────────────────────────
 
-    /**
-     * Resolve a className to a fresh Callable.
-     * Returns a new task instance each time — tasks must be stateless.
-     * <p>
-     * Skips resolution for "inline" className — task already has
-     * executionFn set directly (used in tests with lambda constructors).
-     *
-     * @throws IllegalArgumentException if className was never registered
-     */
+
     public Callable<Void> resolve(String className) {
         if ("inline".equals(className)) {
             throw new IllegalArgumentException(

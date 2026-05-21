@@ -1,22 +1,15 @@
 package com.workflow.workflow.database;
 
+import com.workflow.workflow.core.constants.TaskStatus;
 import com.workflow.workflow.core.model.Task;
 import com.workflow.workflow.core.model.TaskInstance;
-import com.workflow.workflow.core.constants.TaskStatus;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * WorkflowService
- * <p>
- * Facade over TaskRepository, TaskInstanceRepository, WorkflowRepository.
- * The engine talks only to this.
- */
-public interface WorkflowService {
 
-    // ── Task definitions ──────────────────────────────────────────────────────
+public interface WorkflowService {
 
     void saveAll(String workflowId, Collection<Task> tasks);
 
@@ -25,8 +18,6 @@ public interface WorkflowService {
     List<Task> findByClassName(String className);
 
     List<Task> findByWorkflow(String workflowId);
-
-    // ── Task instances ────────────────────────────────────────────────────────
 
     void saveTaskInstance(TaskInstance taskInstance);
 

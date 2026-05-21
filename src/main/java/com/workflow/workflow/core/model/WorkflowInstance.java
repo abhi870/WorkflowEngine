@@ -4,6 +4,7 @@ import com.workflow.workflow.core.constants.TaskStatus;
 import com.workflow.workflow.core.constants.WorkflowStatus;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -11,20 +12,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * WorkflowInstance
- * <p>
- * A specific EXECUTION of a Workflow definition.
- * One Workflow can be run many times — each produces a WorkflowInstance.
- * <p>
- * Owns all runtime state:
- * status, startTime, endTime, cancelRequested, taskInstances
- * <p>
- * Workflow (definition) owns:
- * id, tasks (definitions)
- */
+
 @Getter
 @Setter
+@ToString
 public class WorkflowInstance {
 
     private final String instanceId;
@@ -39,7 +30,7 @@ public class WorkflowInstance {
     public WorkflowInstance(String workflowId, List<TaskInstance> taskInstances) {
         this.instanceId = UUID.randomUUID().toString();
         this.workflowId = workflowId;
-        this.taskInstances = new ArrayList<>(taskInstances);
+        this.taskInstances = Collections.unmodifiableList(new ArrayList<>(taskInstances));
         this.startTime = Instant.now().toString();
     }
 
@@ -49,15 +40,11 @@ public class WorkflowInstance {
     }
 
 
-    /**
-     * One-way latch — once cancelled, cannot be un-cancelled.
-     */
     public void cancel() {
         this.cancelRequested = true;
         System.out.println("[WorkflowInstance] Cancellation requested for '" + instanceId + "'");
     }
 
-    // ── Convenience ───────────────────────────────────────────────────────────
 
     public TaskInstance findByTaskId(String taskId) {
         return taskInstances.stream()
@@ -86,15 +73,4 @@ public class WorkflowInstance {
                 || status == WorkflowStatus.CANCELLED;
     }
 
-    @Override
-    public String toString() {
-        return "WorkflowInstance{"
-                + "\n    instanceId = '" + instanceId + "'"
-                + "\n    workflowId = '" + workflowId + "'"
-                + "\n    status     = " + status
-                + "\n    startTime  = " + startTime
-                + "\n    endTime    = " + (endTime != null ? endTime : "—")
-                + "\n    tasks      = " + taskInstances.size()
-                + "\n  }";
-    }
 }

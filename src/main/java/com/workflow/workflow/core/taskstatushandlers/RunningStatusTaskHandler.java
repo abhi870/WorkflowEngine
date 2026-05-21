@@ -1,52 +1,88 @@
 package com.workflow.workflow.core.taskstatushandlers;
 
-import com.workflow.workflow.core.model.TaskExecutionLog;
+import com.workflow.workflow.core.constants.TaskStatus;
+import com.workflow.workflow.core.logging.LoggingService;
+import com.workflow.workflow.core.logging.TaskExecutionLog;
+import com.workflow.workflow.core.model.RetryPolicy;
 import com.workflow.workflow.core.model.TaskInstance;
 import com.workflow.workflow.core.tasks.TaskFunction;
-import com.workflow.workflow.core.constants.TaskStatus;
 import lombok.RequiredArgsConstructor;
 
 import java.time.Instant;
 
-/**
- * RunningStatusTaskHandler
- * <p>
- * Entry point — called by the engine, not chained from another handler.
- * Does NOT implement TaskStatusHandler because it requires TaskFunction
- * alongside TaskInstance, which the interface doesn't carry.
- * <p>
- * SuccessStatusTaskHandler and FailedStatusTaskHandler implement
- * TaskStatusHandler because they are chained internally.
- */
 @RequiredArgsConstructor
 public class RunningStatusTaskHandler {
 
     private final SuccessStatusTaskHandler onSuccess;
     private final FailedStatusTaskHandler onFailure;
+    private final LoggingService loggingService;
 
-    public void handle(TaskInstance taskInstance, TaskFunction executionFn) throws Exception {
+    public void handle(TaskInstance taskInstance, TaskFunction executionFn,
+                       RetryPolicy retryPolicy) throws Exception {
+
         taskInstance.setStatus(TaskStatus.RUNNING);
-        String startTime = Instant.now().toString();
-        taskInstance.setStartTime(startTime);
+        taskInstance.setStartTime(Instant.now().toString());
 
-        System.out.println("[RUNNING] Task '" + taskInstance.getTaskId() + "'"
-                + " [thread: " + Thread.currentThread().getName() + "]");
-        try {
-            executionFn.execute();
-            String endTime = Instant.now().toString();
-            taskInstance.appendLog(TaskExecutionLog.success(
-                    taskInstance.getInstanceId(),
-                    taskInstance.getWorkflowInstanceId(),
-                    1, startTime, endTime));
-            onSuccess.handle(taskInstance);
-        } catch (Exception e) {
-            String endTime = Instant.now().toString();
-            taskInstance.setFailureReason(e.getMessage());
-            taskInstance.appendLog(TaskExecutionLog.failed(
-                    taskInstance.getInstanceId(),
-                    taskInstance.getWorkflowInstanceId(),
-                    1, startTime, endTime, e.getMessage()));
-            onFailure.handle(taskInstance);
+        logTaskRunning(taskInstance, retryPolicy);
+
+
+        for (int attempt = 1; attempt <= retryPolicy.getMaxAttempts(); attempt++) {
+            String startTime = Instant.now().toString();
+
+            try {
+                executionFn.execute();
+
+                // ── Success ───────────────────────────────────────────────────
+                String endTime = Instant.now().toString();
+                loggingService.log(TaskExecutionLog.success(
+                        taskInstance.getInstanceId(),
+                        taskInstance.getWorkflowInstanceId(),
+                        attempt, startTime, endTime));
+
+                if (attempt > 1) {
+                    System.out.println("[RETRY-SUCCESS] Task '" + taskInstance.getTaskId()
+                            + "' succeeded on attempt " + attempt + "/" + retryPolicy.getMaxAttempts());
+                }
+                onSuccess.handle(taskInstance);
+                return;
+
+            } catch (Exception e) {
+                // ── Failed attempt ────────────────────────────────────────────
+                String endTime = Instant.now().toString();
+                taskInstance.setFailureReason(e.getMessage());
+
+                loggingService.log(TaskExecutionLog.failed(
+                        taskInstance.getInstanceId(),
+                        taskInstance.getWorkflowInstanceId(),
+                        attempt, startTime, endTime, e.getMessage()));
+
+                boolean hasMoreAttempts = attempt < retryPolicy.getMaxAttempts();
+
+                if (hasMoreAttempts) {
+                    logHasMoreAttemptsRetrying(taskInstance, attempt, retryPolicy.getMaxAttempts(), retryPolicy.getBackoffMs());
+                    if (retryPolicy.getBackoffMs() > 0) Thread.sleep(retryPolicy.getBackoffMs());
+                } else {
+                    logAttemptsExhausted(taskInstance, retryPolicy.getMaxAttempts());
+                    onFailure.handle(taskInstance);
+                }
+            }
         }
+    }
+
+    private void logTaskRunning(TaskInstance taskInstance, RetryPolicy retryPolicy) {
+        System.out.println("[RUNNING] Task '" + taskInstance.getTaskId() + "'"
+                + " [thread: " + Thread.currentThread().getName() + "]"
+                + " [maxAttempts=" + retryPolicy.getMaxAttempts() + "]");
+    }
+
+    private void logAttemptsExhausted(TaskInstance taskInstance, int maxAttempts) {
+        System.out.println("[FAILED] Task '" + taskInstance.getTaskId()
+                + "' exhausted all " + maxAttempts + " attempt(s).");
+    }
+
+    private void logHasMoreAttemptsRetrying(TaskInstance taskInstance, int attempt, int maxAttempts, long backoffMs) {
+        System.out.println("[RETRY] Task '" + taskInstance.getTaskId()
+                + "' attempt " + attempt + "/" + maxAttempts
+                + " failed — retrying in " + backoffMs + "ms...");
     }
 }

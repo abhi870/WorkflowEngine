@@ -26,7 +26,6 @@ public class WorkflowServiceImpl implements WorkflowService {
         this.workflowRepository = workflowRepository;
     }
 
-    // ── Task definitions ──────────────────────────────────────────────────────
 
     @Override
     public void saveAll(String workflowId, Collection<Task> tasks) {

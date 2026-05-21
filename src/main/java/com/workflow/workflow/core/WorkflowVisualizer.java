@@ -14,10 +14,7 @@ public class WorkflowVisualizer {
     private WorkflowVisualizer() {
     }
 
-    /**
-     * Export with runtime status — pass WorkflowInstance for coloured nodes.
-     * Call before submit() for a PENDING plan, after submit() for final result.
-     */
+
     public static void export(Workflow workflow, WorkflowInstance wfInstance,
                               Path outputPath) throws IOException {
         String dot = toDot(workflow, wfInstance);
@@ -25,10 +22,6 @@ public class WorkflowVisualizer {
         System.out.println("[Visualizer] DOT file written to: " + outputPath.toAbsolutePath());
     }
 
-    /**
-     * Export definition only — all nodes shown as PENDING (white).
-     * Useful for visualising the workflow structure before execution.
-     */
     public static void export(Workflow workflow, Path outputPath) throws IOException {
         String dot = toDot(workflow, null);
         Files.writeString(outputPath, dot);
@@ -71,7 +64,6 @@ public class WorkflowVisualizer {
         return sb.toString();
     }
 
-    // ── Private ───────────────────────────────────────────────────────────────
 
     private static TaskStatus resolveStatus(Task task, WorkflowInstance wfInstance) {
         if (wfInstance == null) return TaskStatus.PENDING;

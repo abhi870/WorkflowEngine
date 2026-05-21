@@ -11,7 +11,6 @@ public class Workflow {
     private final String id;
     private final Set<Task> tasks = new LinkedHashSet<>();
     private volatile WorkflowStatus status = WorkflowStatus.PENDING;
-    private volatile boolean cancelRequested = false;
 
 
     public Workflow(String id) {
@@ -30,8 +29,9 @@ public class Workflow {
         WorkflowHelper.checkNoCycles(idTaskMap);
     }
 
-    public void setStatus(WorkflowStatus status) {
-        this.status = status;
+
+    public Set<Task> getTasks() {
+        return Collections.unmodifiableSet(tasks);
     }
 
     public List<Task> getDependents(String taskId) {
@@ -40,11 +40,6 @@ public class Workflow {
             if (t.getDependencies().contains(taskId))
                 dependents.add(t);
         return dependents;
-    }
-
-    public void cancel() {
-        this.cancelRequested = true;
-        System.out.println("[Workflow] Cancellation requested for '" + id + "'");
     }
 
 }

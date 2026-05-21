@@ -1,18 +1,10 @@
 package com.workflow.workflow.core.tasks;
 
-/**
- * FailingTask
- * <p>
- * Always fails — used to test cascade and failure handling.
- * No-arg constructor required by TaskRegistry.
- */
+
 public class FailingTask implements TaskFunction {
 
     private String reason = "Task failed";
 
-    /**
-     * Required by TaskRegistry — no-arg constructor
-     */
     public FailingTask() {
     }
 

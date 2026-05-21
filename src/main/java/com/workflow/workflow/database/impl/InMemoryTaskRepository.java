@@ -11,12 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 
-/**
- * InMemoryTaskRepository
- * <p>
- * Stores Task DEFINITIONS only — no runtime state.
- * Thread safety: ConcurrentHashMap, read methods return stable snapshot copies.
- */
+
 public class InMemoryTaskRepository implements TaskRepository {
 
     private final ConcurrentMap<String, Task> store = new ConcurrentHashMap<>();

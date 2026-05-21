@@ -2,8 +2,10 @@ package com.workflow.workflow.core.model;
 
 
 import com.workflow.workflow.core.constants.TaskStatus;
+import com.workflow.workflow.core.logging.TaskExecutionLog;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -12,27 +14,16 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
-/**
- * TaskInstance
- * <p>
- * A specific EXECUTION of a Task definition.
- * One Task can be executed many times — each produces a TaskInstance.
- * <p>
- * Owns all runtime state:
- * status, startTime, endTime, failureReason, logs
- * <p>
- * Task (definition) owns:
- * id, taskName, dependencies, className, executionFn
- */
+
 @Setter
 @Getter
+@ToString
 public class TaskInstance {
 
     private final String instanceId;
     private final String taskId;               // FK → Task definition
     private final String workflowInstanceId;   // FK → WorkflowInstance
 
-    // Runtime state — thread-safe
     private final AtomicReference<TaskStatus> status =
             new AtomicReference<>(TaskStatus.PENDING);
 
@@ -40,8 +31,7 @@ public class TaskInstance {
     private volatile String endTime;
     private volatile String failureReason;
 
-    // One log per attempt — appended by handlers
-    private final List<TaskExecutionLog> logs = new ArrayList<>();
+    private final List<TaskExecutionLog> logs = Collections.synchronizedList(new ArrayList<>());
 
     public TaskInstance(String taskId, String workflowInstanceId) {
         this.instanceId = UUID.randomUUID().toString();
@@ -59,7 +49,6 @@ public class TaskInstance {
         return Collections.unmodifiableList(logs);
     }
 
-    // ── Setters — called by handlers ─────────────────────────────────────────
 
     public void setStatus(TaskStatus next) {
         status.set(next);
@@ -70,9 +59,7 @@ public class TaskInstance {
         logs.add(log);
     }
 
-    /**
-     * Atomic CAS — used by SkippedStatusTaskHandler to prevent double-skip.
-     */
+
     public boolean transitionTo(TaskStatus expected, TaskStatus next) {
         return status.compareAndSet(expected, next);
     }
@@ -89,17 +76,5 @@ public class TaskInstance {
                 Instant.parse(startTime), Instant.parse(endTime)).toMillis();
     }
 
-    @Override
-    public String toString() {
-        return "TaskInstance{"
-                + "\n    instanceId   = '" + instanceId + "'"
-                + "\n    taskId       = '" + taskId + "'"
-                + "\n    status       = " + status.get()
-                + "\n    startTime    = " + (startTime != null ? startTime : "—")
-                + "\n    endTime      = " + (endTime != null ? endTime : "—")
-                + "\n    durationMs   = " + (startTime != null && endTime != null ? getDurationMs() + "ms" : "—")
-                + "\n    failureReason= " + (failureReason != null ? failureReason : "—")
-                + "\n    logs         = " + logs.size() + " attempt(s)"
-                + "\n  }";
-    }
+
 }

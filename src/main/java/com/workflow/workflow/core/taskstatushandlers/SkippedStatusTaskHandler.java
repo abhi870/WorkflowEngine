@@ -1,9 +1,12 @@
 package com.workflow.workflow.core.taskstatushandlers;
 
+import com.workflow.workflow.core.constants.TaskStatus;
+import com.workflow.workflow.core.constants.WorkflowEventType;
+import com.workflow.workflow.core.logging.LoggingService;
+import com.workflow.workflow.core.logging.WorkflowLog;
 import com.workflow.workflow.core.model.TaskInstance;
 import com.workflow.workflow.core.model.Workflow;
 import com.workflow.workflow.core.model.WorkflowInstance;
-import com.workflow.workflow.core.constants.TaskStatus;
 import lombok.RequiredArgsConstructor;
 
 import java.time.Instant;
@@ -13,10 +16,10 @@ public class SkippedStatusTaskHandler implements TaskStatusHandler {
 
     private final WorkflowInstance workflowInstance;
     private final Workflow workflow;
+    private final LoggingService loggingService;
 
     @Override
     public void handle(TaskInstance taskInstance) {
-        // CAS — only one thread wins the race to skip
         if (!taskInstance.transitionTo(TaskStatus.PENDING, TaskStatus.SKIPPED)) return;
 
         taskInstance.setEndTime(Instant.now().toString());
@@ -24,7 +27,12 @@ public class SkippedStatusTaskHandler implements TaskStatusHandler {
                 + "' skipped — upstream dependency failed"
                 + " [thread: " + Thread.currentThread().getName() + "]");
 
-        // Cascade recursively
+        loggingService.logEvent(WorkflowLog.taskEvent(
+                workflowInstance.getInstanceId(), workflowInstance.getWorkflowId(),
+                taskInstance.getInstanceId(), taskInstance.getTaskId(),
+                WorkflowEventType.TASK_SKIPPED,
+                "Task skipped — upstream dependency failed"));
+
         for (TaskInstance dependent : workflowInstance.getDependentInstances(
                 taskInstance.getTaskId(), workflow)) {
             handle(dependent);

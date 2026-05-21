@@ -6,12 +6,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * TaskRepository
- * <p>
- * Stores Task DEFINITIONS — id, name, deps, className, executionFn.
- * Does NOT store runtime state (status, times) — that lives in TaskInstanceRepository.
- */
+
 public interface TaskRepository {
 
     void save(Task task);
