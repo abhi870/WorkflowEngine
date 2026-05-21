@@ -33,6 +33,7 @@ public class RunningStatusTaskHandler {
                 executionFn.execute();
 
                 String endTime = Instant.now().toString();
+
                 loggingService.log(TaskExecutionLog.success(
                         taskInstance.getInstanceId(),
                         taskInstance.getWorkflowInstanceId(),

@@ -60,9 +60,9 @@ public class WorkflowEngine {
         String wfInstanceId = java.util.UUID.randomUUID().toString();
         List<TaskInstance> taskInstances = new ArrayList<>();
         for (Task task : workflow.getTasks()) {
-            TaskInstance ti = new TaskInstance(task.getId(), wfInstanceId);
-            taskInstances.add(ti);
-            workflowService.saveTaskInstance(ti);  // persist each instance
+            TaskInstance taskInstance = new TaskInstance(task.getId(), wfInstanceId);
+            taskInstances.add(taskInstance);
+            workflowService.saveTaskInstance(taskInstance);  // persist each instance
         }
 
         WorkflowInstance wfInstance = new WorkflowInstance(workflow.getId(), taskInstances);
@@ -198,14 +198,14 @@ public class WorkflowEngine {
         int currentIndex = allLevels.indexOf(currentLevel);
         for (int i = currentIndex; i < allLevels.size(); i++) {
             for (Task task : allLevels.get(i)) {
-                TaskInstance ti = wfInstance.findByTaskId(task.getId());
-                if (ti.getStatus() == TaskStatus.PENDING) {
-                    ti.transitionTo(TaskStatus.PENDING, TaskStatus.CANCELLED);
-                    ti.setEndTime(Instant.now().toString());
+                TaskInstance taskInstance = wfInstance.findByTaskId(task.getId());
+                if (taskInstance.getStatus() == TaskStatus.PENDING) {
+                    taskInstance.transitionTo(TaskStatus.PENDING, TaskStatus.CANCELLED);
+                    taskInstance.setEndTime(Instant.now().toString());
                     System.out.println("[CANCELLED] Task '" + task.getId() + "'");
                     loggingService.logEvent(WorkflowLog.taskEvent(
                             wfInstance.getInstanceId(), wfInstance.getWorkflowId(),
-                            ti.getInstanceId(), task.getId(),
+                            taskInstance.getInstanceId(), task.getId(),
                             WorkflowEventType.TASK_CANCELLED,
                             "Task cancelled — workflow cancellation requested"));
                 }
