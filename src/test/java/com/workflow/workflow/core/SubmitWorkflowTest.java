@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class SubmitWorkflowTest extends WorkflowEngineTestBase {
 
     @Test
-    void submitLinearWorkflow_runsTasksInOrderAndSucceeds() throws Exception {
+    void testLinear() throws Exception {
         Workflow wf = new Workflow("wf-submit-linear");
         wf.addTask(new Task("A", "Task A", PRINT, new PrintTask("A done", 50)));
         wf.addTask(new Task("B", "Task B", Set.of("A"), PRINT, new PrintTask("B done", 50)));
@@ -37,7 +37,7 @@ class SubmitWorkflowTest extends WorkflowEngineTestBase {
     }
 
     @Test
-    void submitParallelWorkflow_runsIndependentTasksConcurrently() throws Exception {
+    void testParallel() throws Exception {
         Workflow wf = new Workflow("wf-submit-parallel");
 
         wf.addTask(new Task("A", "Task A", PRINT, new PrintTask("A done", 200)));
