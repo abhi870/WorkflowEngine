@@ -211,7 +211,7 @@ public class WorkflowEngine {
             for (Task task : allLevels.get(i)) {
                 TaskInstance ti = wfInstance.findByTaskId(task.getId());
                 if (ti.getStatus() == TaskStatus.PENDING) {
-                    ti.setStatus(TaskStatus.CANCELLED);
+                    ti.transitionTo(TaskStatus.PENDING, TaskStatus.CANCELLED);
                     ti.setEndTime(Instant.now().toString());
                     System.out.println("[CANCELLED] Task '" + task.getId() + "'");
                     loggingService.logEvent(WorkflowLog.taskEvent(
