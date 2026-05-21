@@ -37,8 +37,4 @@ public class InMemoryWorkflowRepository implements WorkflowRepository {
                 .collect(Collectors.toList());
     }
 
-    @Override
-    public boolean hasWorkflow(String workflowId) {
-        return workFlowTaskIndex.containsKey(workflowId);
-    }
 }

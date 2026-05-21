@@ -2,7 +2,6 @@ package com.workflow.workflow.database;
 
 import com.workflow.workflow.core.model.Task;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,5 +14,4 @@ public interface TaskRepository {
 
     List<Task> findByClassName(String className);
 
-    Collection<Task> findAll();
 }

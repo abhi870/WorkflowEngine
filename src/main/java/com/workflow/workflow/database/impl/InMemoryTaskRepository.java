@@ -3,8 +3,6 @@ package com.workflow.workflow.database.impl;
 import com.workflow.workflow.core.model.Task;
 import com.workflow.workflow.database.TaskRepository;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,8 +31,4 @@ public class InMemoryTaskRepository implements TaskRepository {
                 .collect(Collectors.toList());
     }
 
-    @Override
-    public Collection<Task> findAll() {
-        return new ArrayList<>(store.values());  // stable snapshot
-    }
 }

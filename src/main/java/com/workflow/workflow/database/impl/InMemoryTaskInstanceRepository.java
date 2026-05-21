@@ -2,7 +2,6 @@ package com.workflow.workflow.database.impl;
 
 import com.workflow.workflow.core.model.TaskInstance;
 import com.workflow.workflow.database.TaskInstanceRepository;
-import com.workflow.workflow.core.constants.TaskStatus;
 
 import java.util.List;
 import java.util.Optional;
@@ -26,23 +25,11 @@ public class InMemoryTaskInstanceRepository implements TaskInstanceRepository {
     }
 
     @Override
-    public List<TaskInstance> findByTaskId(String taskId) {
-        return store.values().stream()
-                .filter(ti -> ti.getTaskId().equals(taskId))
-                .collect(Collectors.toList());
-    }
-
-    @Override
     public List<TaskInstance> findByWorkflowInstanceId(String workflowInstanceId) {
         return store.values().stream()
                 .filter(ti -> ti.getWorkflowInstanceId().equals(workflowInstanceId))
                 .collect(Collectors.toList());
     }
 
-    @Override
-    public List<TaskInstance> findByStatus(TaskStatus status) {
-        return store.values().stream()
-                .filter(ti -> ti.getStatus() == status)
-                .collect(Collectors.toList());
-    }
+
 }

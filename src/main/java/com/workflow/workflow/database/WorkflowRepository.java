@@ -11,5 +11,4 @@ public interface WorkflowRepository {
 
     List<Task> findByWorkflow(String workflowId);
 
-    boolean hasWorkflow(String workflowId);
 }

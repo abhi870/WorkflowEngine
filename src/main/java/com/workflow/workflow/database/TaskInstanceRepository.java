@@ -1,6 +1,5 @@
 package com.workflow.workflow.database;
 
-import com.workflow.workflow.core.constants.TaskStatus;
 import com.workflow.workflow.core.model.TaskInstance;
 
 import java.util.List;
@@ -13,11 +12,6 @@ public interface TaskInstanceRepository {
 
     Optional<TaskInstance> findById(String instanceId);
 
-
-    List<TaskInstance> findByTaskId(String taskId);
-
-
     List<TaskInstance> findByWorkflowInstanceId(String workflowInstanceId);
 
-    List<TaskInstance> findByStatus(TaskStatus status);
 }
