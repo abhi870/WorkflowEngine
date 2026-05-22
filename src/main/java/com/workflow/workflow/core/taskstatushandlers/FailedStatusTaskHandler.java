@@ -9,13 +9,13 @@ import lombok.RequiredArgsConstructor;
 import java.time.Instant;
 
 @RequiredArgsConstructor
-public class FailedStatusTaskHandler implements TaskStatusHandler {
+public class FailedStatusTaskHandler {
 
     private final WorkflowInstance workflowInstance;
     private final Workflow workflow;
     private final SkippedStatusTaskHandler skippedHandler;
 
-    @Override
+
     public void handle(TaskInstance taskInstance) {
         taskInstance.transitionTo(TaskStatus.RUNNING, TaskStatus.FAILED);
         taskInstance.setEndTime(Instant.now().toString());

@@ -5,6 +5,8 @@ import com.workflow.workflow.core.logging.LoggingService;
 import com.workflow.workflow.core.logging.TaskExecutionLog;
 import com.workflow.workflow.core.model.RetryPolicy;
 import com.workflow.workflow.core.model.TaskInstance;
+import com.workflow.workflow.core.model.Workflow;
+import com.workflow.workflow.core.model.WorkflowInstance;
 import com.workflow.workflow.core.tasks.TaskFunction;
 import lombok.RequiredArgsConstructor;
 
@@ -18,7 +20,7 @@ public class RunningStatusTaskHandler {
     private final LoggingService loggingService;
 
     public void handle(TaskInstance taskInstance, TaskFunction executionFn,
-                       RetryPolicy retryPolicy) throws Exception {
+                       RetryPolicy retryPolicy, Workflow workflow, WorkflowInstance workflowInstance) throws Exception {
 
         taskInstance.transitionTo(TaskStatus.PENDING, TaskStatus.RUNNING);
         taskInstance.setStartTime(Instant.now().toString());
@@ -31,6 +33,7 @@ public class RunningStatusTaskHandler {
             try {
                 executionFn.execute();
 
+                taskInstance.transitionTo(TaskStatus.PENDING, TaskStatus.SUCCESS);
                 String endTime = Instant.now().toString();
 
                 loggingService.log(TaskExecutionLog.success(
@@ -42,7 +45,7 @@ public class RunningStatusTaskHandler {
                     System.out.println("[RETRY-SUCCESS] Task '" + taskInstance.getTaskId()
                             + "' succeeded on attempt " + attempt + "/" + retryPolicy.getMaxAttempts());
                 }
-                onSuccess.handle(taskInstance);
+                onSuccess.handle(taskInstance, workflow, workflowInstance, this);
                 return;
 
             } catch (Exception e) {

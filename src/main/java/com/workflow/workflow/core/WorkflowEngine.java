@@ -56,14 +56,16 @@ public class WorkflowEngine {
             taskRegistry.resolve(task.getClassName());
         }
 
+
         // Create one TaskInstance per Task definition
         String wfInstanceId = java.util.UUID.randomUUID().toString();
         List<TaskInstance> taskInstances = new ArrayList<>();
         for (Task task : workflow.getTasks()) {
-            TaskInstance taskInstance = new TaskInstance(task.getId(), wfInstanceId);
+            TaskInstance taskInstance = new TaskInstance(task.getId(), wfInstanceId, task);
             taskInstances.add(taskInstance);
             workflowService.saveTaskInstance(taskInstance);  // persist each instance
         }
+//        activeWorkflowInstances.get(workflow).
 
         WorkflowInstance wfInstance = new WorkflowInstance(workflow.getId(), taskInstances);
         activeWorkflowInstances.putIfAbsent(wfInstance.getWorkflowId(), wfInstance);
@@ -86,27 +88,10 @@ public class WorkflowEngine {
         RunningStatusTaskHandler runningHandler = new RunningStatusTaskHandler(successHandler, failedHandler, loggingService);
 
         System.out.println("[Engine] Execution plan:");
-        List<List<Task>> levels = WorkflowHelper.groupByLevel(workflow.getTasks());
-        printExecutionPlan(levels);
+        List<Task> zeroIndegreeTasks = WorkflowHelper.getZeroIndegreeTasks(workflow.getTasks());
 
         try {
-            for (int levelIndex = 0; levelIndex < levels.size(); levelIndex++) {
-
-                List<Task> level = levels.get(levelIndex);
-                if (wfInstance.isCancelRequested()) {
-                    cancelPendingTaskInstances(level, levels, wfInstance);
-                    break;
-                }
-
-
-                List<String> levelTaskIds = level.stream().map(Task::getId).toList();
-                loggingService.logEvent(WorkflowLog.workflowEvent(
-                        wfInstance.getInstanceId(), workflow.getId(),
-                        WorkflowEventType.LEVEL_STARTED,
-                        "Level " + levelIndex + " started: " + levelTaskIds));
-
-                runLevel(level, wfInstance, runningHandler);
-            }
+            startExecution(zeroIndegreeTasks, wfInstance, runningHandler, workflow, wfInstance);
         } finally {
             activeWorkflowInstances.remove(wfInstance.getWorkflowId());
         }
@@ -164,11 +149,12 @@ public class WorkflowEngine {
     }
 
 
-    private void runLevel(List<Task> level, WorkflowInstance wfInstance,
-                          RunningStatusTaskHandler runningHandler) throws Exception {
+    private void startExecution(List<Task> zeroIndegreeTasks, WorkflowInstance wfInstance,
+                                RunningStatusTaskHandler runningHandler, Workflow workflow,
+                                WorkflowInstance workflowInstance) throws Exception {
         List<Future<?>> futures = new ArrayList<>();
 
-        for (Task task : level) {
+        for (Task task : zeroIndegreeTasks) {
             TaskInstance taskInstance = wfInstance.findByTaskId(task.getId());
             if (taskInstance.getStatus() == TaskStatus.SKIPPED) continue;
 
@@ -176,7 +162,7 @@ public class WorkflowEngine {
             RetryPolicy retryPolicy = task.getRetryPolicy();
             futures.add(executor.submit(() -> {
                 try {
-                    runningHandler.handle(taskInstance, fn, retryPolicy);
+                    runningHandler.handle(taskInstance, fn, retryPolicy, workflow, workflowInstance);
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }

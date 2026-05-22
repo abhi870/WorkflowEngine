@@ -21,6 +21,10 @@ public class Workflow {
         tasks.add(task);
     }
 
+    public Task getTaskById(String id) {
+        return tasks.stream().filter(task -> task.getId() == id).findFirst().orElse(null);
+    }
+
     public void validate() {
         Map<String, Task> idTaskMap = WorkflowHelper.buildIndex(tasks);
 

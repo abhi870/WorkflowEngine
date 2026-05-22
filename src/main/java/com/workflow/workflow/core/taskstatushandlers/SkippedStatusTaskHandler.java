@@ -12,13 +12,13 @@ import lombok.RequiredArgsConstructor;
 import java.time.Instant;
 
 @RequiredArgsConstructor
-public class SkippedStatusTaskHandler implements TaskStatusHandler {
+public class SkippedStatusTaskHandler {
 
     private final WorkflowInstance workflowInstance;
     private final Workflow workflow;
     private final LoggingService loggingService;
 
-    @Override
+
     public void handle(TaskInstance taskInstance) {
         if (!taskInstance.transitionTo(TaskStatus.PENDING, TaskStatus.SKIPPED)) return;
 

@@ -22,6 +22,7 @@ class SubmitWorkflowTest extends WorkflowEngineTestBase {
     @Test
     void testLinear() throws Exception {
         Workflow wf = new Workflow("wf-submit-linear");
+
         wf.addTask(new Task("A", "Task A", PRINT, new PrintTask("A done", 50)));
         wf.addTask(new Task("B", "Task B", Set.of("A"), PRINT, new PrintTask("B done", 50)));
         wf.addTask(new Task("C", "Task C", Set.of("B"), PRINT, new PrintTask("C done", 50)));

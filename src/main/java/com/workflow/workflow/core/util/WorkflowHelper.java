@@ -5,35 +5,19 @@ import com.workflow.workflow.core.model.Task;
 import java.util.*;
 
 public class WorkflowHelper {
-    public static List<List<Task>> groupByLevel(Set<Task> tasks) {
+    public static List<Task> getZeroIndegreeTasks(Set<Task> tasks) {
         Map<String, Task> idTaskMap = buildIndex(tasks);
         Map<String, Integer> inDegree = new LinkedHashMap<>();
         for (Task t : tasks)
             inDegree.put(t.getId(), t.getDependencies().size());
 
-        List<List<Task>> levels = new ArrayList<>();
-
-        while (!inDegree.isEmpty()) {
-            List<Task> currentLevel = new ArrayList<>();
-
-            //create current level
-            for (Map.Entry<String, Integer> e : inDegree.entrySet())
-                if (e.getValue() == 0) currentLevel.add(idTaskMap.get(e.getKey()));
-
-            //remove current level from indegree
-            for (Task t : currentLevel)
-                inDegree.remove(t.getId());
-
-            //update dependencies
-            for (Task completed : currentLevel)
-                for (Task candidate : tasks)
-                    if (candidate.getDependencies().contains(completed.getId()))
-                        inDegree.computeIfPresent(candidate.getId(), (k, v) -> v - 1);
-
-            levels.add(currentLevel);
-        }
-
-        return levels;
+        List<Task> tasksWithZeroIndegree = new ArrayList<>();
+        inDegree.entrySet().stream().forEach(entry -> {
+            if (inDegree.get(entry.getKey()) == 0) {
+                tasksWithZeroIndegree.add(idTaskMap.get(entry.getKey()));
+            }
+        });
+        return tasksWithZeroIndegree;
     }
 
 
