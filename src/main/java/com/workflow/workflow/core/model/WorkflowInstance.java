@@ -14,7 +14,6 @@ import java.util.UUID;
 
 
 @Getter
-@Setter
 @ToString
 public class WorkflowInstance {
 
@@ -23,9 +22,9 @@ public class WorkflowInstance {
     private final String startTime;
     private final List<TaskInstance> taskInstances;
 
-    private volatile WorkflowStatus status = WorkflowStatus.PENDING;
-    private volatile boolean cancelRequested = false;
-    private volatile String endTime;
+    @Setter private volatile WorkflowStatus status = WorkflowStatus.PENDING;
+    @Setter private volatile boolean cancelRequested = false;
+    @Setter private volatile String endTime;
 
     public WorkflowInstance(String workflowId, List<TaskInstance> taskInstances) {
         this.instanceId = UUID.randomUUID().toString();

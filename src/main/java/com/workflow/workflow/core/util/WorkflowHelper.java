@@ -15,12 +15,16 @@ public class WorkflowHelper {
 
         while (!inDegree.isEmpty()) {
             List<Task> currentLevel = new ArrayList<>();
+
+            //create current level
             for (Map.Entry<String, Integer> e : inDegree.entrySet())
                 if (e.getValue() == 0) currentLevel.add(idTaskMap.get(e.getKey()));
 
+            //remove current level from indegree
             for (Task t : currentLevel)
                 inDegree.remove(t.getId());
 
+            //update dependencies
             for (Task completed : currentLevel)
                 for (Task candidate : tasks)
                     if (candidate.getDependencies().contains(completed.getId()))

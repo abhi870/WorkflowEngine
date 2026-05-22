@@ -25,7 +25,6 @@ public class RunningStatusTaskHandler {
 
         logTaskRunning(taskInstance, retryPolicy);
 
-
         for (int attempt = 1; attempt <= retryPolicy.getMaxAttempts(); attempt++) {
             String startTime = Instant.now().toString();
 

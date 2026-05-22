@@ -30,7 +30,7 @@ public class WorkflowEngine {
     private final ThreadPoolExecutor executor;
     private final WorkflowService workflowService;
     private final TaskRegistry taskRegistry;
-    private final ConcurrentMap<String, WorkflowInstance> activeInstances = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, WorkflowInstance> activeWorkflowInstances = new ConcurrentHashMap<>();
     private final LoggingService loggingService;
 
     public WorkflowEngine(WorkflowService workflowService, TaskRegistry taskRegistry,
@@ -66,7 +66,7 @@ public class WorkflowEngine {
         }
 
         WorkflowInstance wfInstance = new WorkflowInstance(workflow.getId(), taskInstances);
-        activeInstances.putIfAbsent(wfInstance.getWorkflowId(), wfInstance);
+        activeWorkflowInstances.putIfAbsent(wfInstance.getWorkflowId(), wfInstance);
         wfInstance.setStatus(WorkflowStatus.RUNNING);
 
         loggingService.logEvent(WorkflowLog.workflowEvent(
@@ -90,21 +90,25 @@ public class WorkflowEngine {
         printExecutionPlan(levels);
 
         try {
-            for (List<Task> level : levels) {
+            for (int levelIndex = 0; levelIndex < levels.size(); levelIndex++) {
+
+                List<Task> level = levels.get(levelIndex);
                 if (wfInstance.isCancelRequested()) {
                     cancelPendingTaskInstances(level, levels, wfInstance);
                     break;
                 }
-                int levelIndex = levels.indexOf(level);
+
+
                 List<String> levelTaskIds = level.stream().map(Task::getId).toList();
                 loggingService.logEvent(WorkflowLog.workflowEvent(
                         wfInstance.getInstanceId(), workflow.getId(),
                         WorkflowEventType.LEVEL_STARTED,
                         "Level " + levelIndex + " started: " + levelTaskIds));
+
                 runLevel(level, wfInstance, runningHandler);
             }
         } finally {
-            activeInstances.remove(wfInstance.getWorkflowId());
+            activeWorkflowInstances.remove(wfInstance.getWorkflowId());
         }
 
         WorkflowStatus finalStatus;
@@ -122,16 +126,6 @@ public class WorkflowEngine {
                 wfInstance.getInstanceId(), workflow.getId(),
                 WorkflowEventType.WORKFLOW_COMPLETED,
                 "Workflow completed with status: " + finalStatus));
-        System.out.println("[Engine] Workflow '" + workflow.getId() + "' → " + finalStatus);
-
-        java.util.Map<String, TaskStatus> statusMap =
-                wfInstance.getTaskInstances().stream()
-                        .collect(java.util.stream.Collectors.toMap(
-                                TaskInstance::getInstanceId,
-                                TaskInstance::getStatus));
-
-
-        System.out.println("[Engine] Summary:\n");
 
         return wfInstance;
     }
@@ -142,7 +136,7 @@ public class WorkflowEngine {
     }
 
     public void cancelWorkflow(String workflowId) {
-        WorkflowInstance wfInstance = activeInstances.values().stream()
+        WorkflowInstance wfInstance = activeWorkflowInstances.values().stream()
                 .filter(w -> w.getWorkflowId().equals(workflowId))
                 .findFirst()
                 .orElse(null);

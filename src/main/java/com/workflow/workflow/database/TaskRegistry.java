@@ -24,10 +24,6 @@ public class TaskRegistry {
 
 
     public Callable<Void> resolve(String className) {
-        if ("inline".equals(className)) {
-            throw new IllegalArgumentException(
-                    "Cannot resolve 'inline' tasks via registry — executionFn is set directly");
-        }
 
         Class<? extends TaskFunction> taskClass = store.get(className);
         if (taskClass == null) {
