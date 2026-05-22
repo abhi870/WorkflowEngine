@@ -39,35 +39,12 @@ public class TaskInstance {
         this.workflowInstanceId = workflowInstanceId;
     }
 
-
     public TaskStatus getStatus() {
         return status.get();
     }
 
-
-    public List<TaskExecutionLog> getLogs() {
-        return Collections.unmodifiableList(logs);
-    }
-
-
-    public void setStatus(TaskStatus next) {
-        status.set(next);
-    }
-
-
-    public void appendLog(TaskExecutionLog log) {
-        logs.add(log);
-    }
-
-
     public boolean transitionTo(TaskStatus expected, TaskStatus next) {
         return status.compareAndSet(expected, next);
-    }
-
-    public boolean isTerminal() {
-        TaskStatus s = status.get();
-        return s == TaskStatus.SUCCESS || s == TaskStatus.FAILED
-                || s == TaskStatus.SKIPPED || s == TaskStatus.CANCELLED;
     }
 
     public long getDurationMs() {

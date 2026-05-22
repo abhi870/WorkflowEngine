@@ -7,8 +7,7 @@ import com.workflow.workflow.core.model.WorkflowInstance;
 import com.workflow.workflow.core.tasks.FailOnceThenSucceedTask;
 import com.workflow.workflow.core.tasks.FailingTask;
 import com.workflow.workflow.core.tasks.PrintTask;
-import com.workflow.workflow.database.TaskRegistry;
-import com.workflow.workflow.database.WorkflowService;
+import com.workflow.workflow.database.*;
 import com.workflow.workflow.database.impl.InMemoryTaskInstanceRepository;
 import com.workflow.workflow.database.impl.InMemoryTaskRepository;
 import com.workflow.workflow.database.impl.InMemoryWorkflowRepository;
@@ -31,9 +30,9 @@ public abstract class WorkflowEngineTestBase {
 
     @BeforeEach
     void setUpEngine() {
-        InMemoryTaskRepository taskRepo = new InMemoryTaskRepository();
-        InMemoryTaskInstanceRepository taskInstanceRepo = new InMemoryTaskInstanceRepository();
-        InMemoryWorkflowRepository workflowRepo = new InMemoryWorkflowRepository(taskRepo);
+        TaskRepository taskRepo = new InMemoryTaskRepository();
+        TaskInstanceRepository taskInstanceRepo = new InMemoryTaskInstanceRepository();
+        WorkflowRepository workflowRepo = new InMemoryWorkflowRepository(taskRepo);
 
         this.workflowService = new WorkflowServiceImpl(taskRepo, taskInstanceRepo, workflowRepo);
         this.taskRegistry = new TaskRegistry();

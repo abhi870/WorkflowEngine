@@ -1,9 +1,9 @@
 package com.workflow.workflow.core.taskstatushandlers;
 
+import com.workflow.workflow.core.constants.TaskStatus;
 import com.workflow.workflow.core.model.TaskInstance;
 import com.workflow.workflow.core.model.Workflow;
 import com.workflow.workflow.core.model.WorkflowInstance;
-import com.workflow.workflow.core.constants.TaskStatus;
 import lombok.RequiredArgsConstructor;
 
 import java.time.Instant;
@@ -17,7 +17,7 @@ public class FailedStatusTaskHandler implements TaskStatusHandler {
 
     @Override
     public void handle(TaskInstance taskInstance) {
-        taskInstance.setStatus(TaskStatus.FAILED);
+        taskInstance.transitionTo(TaskStatus.RUNNING, TaskStatus.FAILED);
         taskInstance.setEndTime(Instant.now().toString());
         System.out.println("[FAILED]  Task '" + taskInstance.getTaskId() + "'"
                 + " failed after " + taskInstance.getDurationMs() + "ms"

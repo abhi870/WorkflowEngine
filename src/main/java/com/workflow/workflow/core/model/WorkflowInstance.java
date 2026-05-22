@@ -67,10 +67,5 @@ public class WorkflowInstance {
                 .anyMatch(ti -> ti.getStatus() == TaskStatus.FAILED);
     }
 
-    public boolean isTerminal() {
-        return status == WorkflowStatus.SUCCESS
-                || status == WorkflowStatus.FAILED
-                || status == WorkflowStatus.CANCELLED;
-    }
 
 }

@@ -28,12 +28,12 @@ class SubmitWorkflowTest extends WorkflowEngineTestBase {
 
         WorkflowInstance wfi = engine.submit(wf);
 
-        assertNotNull(wfi.getInstanceId(), "instanceId should be assigned");
-        assertEquals(WorkflowStatus.SUCCESS, wfi.getStatus(), "workflow should be SUCCESS");
+        assertNotNull(wfi.getInstanceId());
+        assertEquals(WorkflowStatus.SUCCESS, wfi.getStatus());
         assertEquals(TaskStatus.SUCCESS, statusOf(wfi, "A"));
         assertEquals(TaskStatus.SUCCESS, statusOf(wfi, "B"));
         assertEquals(TaskStatus.SUCCESS, statusOf(wfi, "C"));
-        assertNotNull(wfi.getEndTime(), "endTime should be set on completion");
+        assertNotNull(wfi.getEndTime());
     }
 
     @Test

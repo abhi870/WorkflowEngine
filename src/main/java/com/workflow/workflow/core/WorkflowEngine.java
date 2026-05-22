@@ -66,7 +66,7 @@ public class WorkflowEngine {
         }
 
         WorkflowInstance wfInstance = new WorkflowInstance(workflow.getId(), taskInstances);
-        activeInstances.put(wfInstance.getInstanceId(), wfInstance);
+        activeInstances.putIfAbsent(wfInstance.getWorkflowId(), wfInstance);
         wfInstance.setStatus(WorkflowStatus.RUNNING);
 
         loggingService.logEvent(WorkflowLog.workflowEvent(
@@ -104,7 +104,7 @@ public class WorkflowEngine {
                 runLevel(level, wfInstance, runningHandler);
             }
         } finally {
-            activeInstances.remove(wfInstance.getInstanceId());
+            activeInstances.remove(wfInstance.getWorkflowId());
         }
 
         WorkflowStatus finalStatus;

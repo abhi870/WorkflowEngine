@@ -20,7 +20,7 @@ public class RunningStatusTaskHandler {
     public void handle(TaskInstance taskInstance, TaskFunction executionFn,
                        RetryPolicy retryPolicy) throws Exception {
 
-        taskInstance.setStatus(TaskStatus.RUNNING);
+        taskInstance.transitionTo(TaskStatus.PENDING, TaskStatus.RUNNING);
         taskInstance.setStartTime(Instant.now().toString());
 
         logTaskRunning(taskInstance, retryPolicy);
